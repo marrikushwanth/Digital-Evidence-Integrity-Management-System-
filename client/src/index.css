@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+@theme {
+  --color-soc-bg: #000000;
+  --color-soc-panel: #050b14;
+  --color-soc-panel-border: #1e293b;
+  --color-soc-cyan: #00f0ff;
+  --color-soc-cyan-dim: rgba(0, 240, 255, 0.15);
+  --color-soc-green: #00ff9d;
+  --color-soc-red: #ff003c;
+  --color-soc-text: #e2e8f0;
+  --color-soc-muted: #64748b;
+}
+
+@layer base {
+  body {
+    @apply bg-soc-bg text-soc-text font-sans antialiased min-h-screen;
+    background-image: 
+      radial-gradient(circle at 15% 50%, rgba(0, 240, 255, 0.03) 0%, transparent 50%),
+      radial-gradient(circle at 85% 30%, rgba(0, 255, 157, 0.02) 0%, transparent 50%);
+    background-attachment: fixed;
+  }
+}
+
+/* Custom Scrollbar for dense SOC interfaces */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #00f0ff;
+}
+
+/* SOC Panel Utilities */
+.soc-panel {
+  @apply bg-[#050b14] border border-[#1e293b] rounded-lg shadow-[0_0_15px_rgba(0,0,0,0.5)];
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle inner glow for active panels */
+.soc-panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.2), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.soc-panel:hover::before {
+  opacity: 1;
+}
+
+/* Typography specifics */
+.font-mono-tabular {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Blinking terminal cursor */
+.terminal-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 1.2em;
+  background-color: #00f0ff;
+  vertical-align: middle;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
