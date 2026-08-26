@@ -65,7 +65,7 @@ export default function Profile() {
             
             <div className="flex flex-col items-center p-6 text-center border-b border-soc-panel-border bg-[#03070f]">
               <div className="w-24 h-24 rounded-full bg-[#0a1122] border-2 border-soc-cyan flex items-center justify-center mb-4 relative shadow-[0_0_20px_rgba(0,240,255,0.15)] group-hover:shadow-[0_0_30px_rgba(0,240,255,0.3)] transition-shadow">
-                <span className="text-3xl font-black text-soc-cyan">{user.initials || user.fullName.charAt(0)}</span>
+                <span className="text-3xl font-black text-soc-cyan">{user.initials || (user.fullName || '').charAt(0)}</span>
                 {user.role === 'Super Admin' && (
                   <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-black rounded-full flex items-center justify-center border border-soc-panel-border" title="Super Admin">
                     <span className="text-lg">👑</span>

@@ -1,0 +1,41 @@
+{
+  "_format": "hh-sol-cache-2",
+  "files": {
+    "C:\\Users\\marri\\Desktop\\Information_Security\\Information_Security_Project\\DEIMS\\blockchain\\contracts\\DEIMSEvidence.sol": {
+      "lastModificationDate": 1786552413835,
+      "contentHash": "3efe8aca40b91ec46132e24ffe8951bd",
+      "sourceName": "contracts/DEIMSEvidence.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "DEIMSEvidence"
+      ]
+    }
+  }
+}

@@ -13,14 +13,14 @@ export default function Login() {
   const { loginUser } = useApp();
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     if (forgotPwd) {
       alert("Password reset instructions have been sent to the registered email address if it exists.");
       setForgotPwd(false);
       return;
     }
-    const result = loginUser(username, password, rememberMe);
+    const result = await loginUser(username, password, rememberMe);
     if (result.success) {
       navigate('/');
     } else {

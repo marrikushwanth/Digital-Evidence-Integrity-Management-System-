@@ -180,6 +180,24 @@ export default function EvidenceList() {
               </div>
             </div>
 
+            <div className="bg-[#0a1122] p-4 rounded border border-soc-panel-border border-l-2 border-l-soc-green">
+              <span className="text-[10px] uppercase text-soc-muted block mb-2 tracking-widest">Blockchain Ledger Record</span>
+              <div className="flex flex-col gap-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-soc-muted">Status:</span>
+                  <StatusBadge status={selectedEv.blockchainStatus || 'UNKNOWN'} />
+                </div>
+                {selectedEv.blockchainTxHash && (
+                  <div>
+                    <span className="text-[10px] uppercase text-soc-muted block mb-1">Transaction Hash</span>
+                    <div className="font-mono-tabular text-xs text-soc-cyan break-all">
+                      {selectedEv.blockchainTxHash}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="flex items-center gap-4 border-t border-soc-panel-border pt-6">
               <button onClick={() => handleDownload(selectedEv)} className="px-6 py-2 bg-soc-cyan/10 border border-soc-cyan text-soc-cyan text-xs font-mono-tabular font-bold tracking-widest rounded hover:bg-soc-cyan hover:text-black transition-colors flex items-center gap-2">
                 <Download className="w-4 h-4" /> Download Decrypted

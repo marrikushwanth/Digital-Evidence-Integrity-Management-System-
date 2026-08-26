@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext';
 import { generateSHA256 } from '../utils/cryptoUtils';
 
 export default function VerifyIntegrity() {
-  const { evidence, addAuditLog } = useApp();
+  const { evidence, verifyEvidence, blockchainStatus } = useApp();
   const [selectedEvidenceId, setSelectedEvidenceId] = useState('');
   const [file, setFile] = useState(null);
   const [result, setResult] = useState(null);
@@ -19,34 +19,44 @@ export default function VerifyIntegrity() {
     setIsVerifying(true);
     setResult(null);
 
-    // Simulate verification
-    setTimeout(async () => {
-      const calculatedHash = await generateSHA256(file.name + file.size);
-      const isMatch = calculatedHash === selectedEvidence.sha256;
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('evidence_id', selectedEvidence.id);
+      
+      const res = await verifyEvidence(formData);
       
       setResult({
-        calculatedHash,
-        originalHash: selectedEvidence.sha256,
-        isMatch
+        calculatedHash: res.data.calculated_hash || 'MISMATCH',
+        originalHash: selectedEvidence.file_hash,
+        isMatch: res.data.match,
+        dbMatch: res.data.db_match,
+        bcMatch: res.data.bc_match,
+        bcStatus: res.data.bc_status,
+        overallResult: res.message
       });
-
-      addAuditLog(
-        isMatch ? 'VERIFY_HASH' : 'INTEGRITY_ALERT',
-        `Verification against ${selectedEvidence.id}: ${isMatch ? 'MATCH' : 'MISMATCH'}`,
-        isMatch ? 'SUCCESS' : 'DANGER'
-      );
-
+    } catch (e) {
+      console.error(e);
+    } finally {
       setIsVerifying(false);
-    }, 1500);
+    }
   };
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-      <div>
-        <h1 className="text-xl font-mono-tabular font-bold text-soc-text uppercase tracking-widest flex items-center gap-2">
-          <ShieldCheck className="w-5 h-5 text-soc-cyan" /> Integrity Check
-        </h1>
-        <p className="text-xs text-soc-muted font-mono-tabular">Verify digital artifact integrity against the cryptographic ledger.</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-xl font-mono-tabular font-bold text-soc-text uppercase tracking-widest flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-soc-cyan" /> Integrity Check
+          </h1>
+          <p className="text-xs text-soc-muted font-mono-tabular">Verify digital artifact integrity against the database and cryptographic ledger.</p>
+        </div>
+        
+        {blockchainStatus && (
+          <div className={`px-4 py-2 rounded-md border text-xs font-mono-tabular font-bold uppercase tracking-widest ${blockchainStatus.connected ? 'bg-soc-green/10 border-soc-green text-soc-green' : 'bg-soc-red/10 border-soc-red text-soc-red'}`}>
+            Ledger: {blockchainStatus.status}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -60,7 +70,7 @@ export default function VerifyIntegrity() {
                 className="w-full bg-[#0a1122] border border-soc-panel-border rounded-md py-2.5 px-3 text-sm text-soc-text focus:outline-none focus:border-soc-cyan focus:ring-1 focus:ring-soc-cyan font-mono-tabular appearance-none"
               >
                 <option value="">-- Select Artifact to Verify --</option>
-                {evidence.map(e => <option key={e.id} value={e.id}>{e.id} : {e.fileName}</option>)}
+                {evidence.map(e => <option key={e.id} value={e.id}>{e.id} : {e.original_name}</option>)}
               </select>
             </div>
 
@@ -68,7 +78,7 @@ export default function VerifyIntegrity() {
               <div className="bg-[#03070f] border border-soc-panel-border p-4 rounded-md space-y-3">
                 <div>
                   <div className="text-[10px] font-mono-tabular text-soc-muted uppercase">Original Hash (Ledger)</div>
-                  <div className="text-xs font-mono-tabular text-soc-cyan break-all">{selectedEvidence.sha256}</div>
+                  <div className="text-xs font-mono-tabular text-soc-cyan break-all">{selectedEvidence.file_hash}</div>
                 </div>
               </div>
             )}
@@ -118,11 +128,25 @@ export default function VerifyIntegrity() {
                   <AlertTriangle className="w-16 h-16 text-soc-red mb-3 animate-pulse" />
                 )}
                 <h3 className={`text-xl font-black tracking-widest ${result.isMatch ? 'text-soc-green' : 'text-soc-red'}`}>
-                  {result.isMatch ? 'INTEGRITY VERIFIED' : 'TAMPER DETECTED'}
+                  {result.overallResult || (result.isMatch ? 'INTEGRITY VERIFIED' : 'TAMPER DETECTED')}
                 </h3>
               </div>
 
               <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className={`p-3 rounded border border-soc-panel-border ${result.dbMatch ? 'bg-soc-green/10 border-soc-green/30 text-soc-green' : 'bg-soc-red/10 border-soc-red/30 text-soc-red'}`}>
+                    <div className="text-[10px] font-mono-tabular uppercase mb-1">Database Layer</div>
+                    <div className="text-sm font-bold">{result.dbMatch ? 'MATCH' : 'MISMATCH'}</div>
+                  </div>
+                  
+                  <div className={`p-3 rounded border border-soc-panel-border ${result.bcMatch === true ? 'bg-soc-green/10 border-soc-green/30 text-soc-green' : result.bcMatch === false ? 'bg-soc-red/10 border-soc-red/30 text-soc-red' : 'bg-[#0a1122] text-soc-muted'}`}>
+                    <div className="text-[10px] font-mono-tabular uppercase mb-1">Blockchain Layer</div>
+                    <div className="text-sm font-bold">
+                      {result.bcMatch === true ? 'MATCH' : result.bcMatch === false ? 'MISMATCH' : result.bcStatus}
+                    </div>
+                  </div>
+                </div>
+
                 <div className="bg-[#03070f] p-3 rounded border border-soc-panel-border">
                   <div className="text-[10px] font-mono-tabular text-soc-muted uppercase mb-1">Calculated Sample Hash</div>
                   <div className={`text-xs font-mono-tabular break-all ${result.isMatch ? 'text-soc-green' : 'text-soc-red'}`}>

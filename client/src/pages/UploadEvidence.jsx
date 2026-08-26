@@ -52,25 +52,13 @@ export default function UploadEvidence() {
     }, 300);
   };
 
-  const completeUpload = () => {
-    const mockHash = Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join('');
+  const completeUpload = async () => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('case_id', caseId);
     
-    const newEv = {
-      id: `EVD-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}-${file.name.charAt(0).toUpperCase()}`,
-      caseId: caseId,
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: file.type || 'Unknown Binary',
-      sha256: mockHash,
-      aesEncrypted: true,
-      uploadDate: new Date().toISOString(),
-      verificationStatus: 'Verified'
-    };
-
-    setTimeout(() => {
-      uploadEvidence(newEv);
-      navigate('/evidence');
-    }, 1000);
+    await uploadEvidence(formData);
+    navigate('/evidence');
   };
 
   return (

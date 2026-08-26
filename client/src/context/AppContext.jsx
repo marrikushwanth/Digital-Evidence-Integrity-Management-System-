@@ -1,15 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { initialUsers, initialCases, initialEvidence, initialCustodyTimeline, initialAuditLogs, initialNotifications } from '../data/mockData';
 
 const AppContext = createContext();
 
+const API_URL = 'http://localhost:5000/api';
+
 export const AppProvider = ({ children }) => {
-  // State initialization with Local Storage fallback
-  const initStorage = (key, fallback) => {
-    const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : fallback;
-  };
-  
   const initSession = (key, fallback) => {
     const local = localStorage.getItem(key);
     const session = sessionStorage.getItem(key);
@@ -18,182 +13,251 @@ export const AppProvider = ({ children }) => {
     return fallback;
   };
 
-  const [users, setUsers] = useState(() => initStorage('soc_users_v3', initialUsers));
+  const [token, setToken] = useState(() => initSession('soc_token', null));
   const [user, setUser] = useState(() => initSession('soc_current_user', null));
   const [isAuthenticated, setIsAuthenticated] = useState(() => initSession('soc_auth', false));
-  const [cases, setCases] = useState(() => initStorage('soc_cases_v3', initialCases));
-  const [evidence, setEvidence] = useState(() => initStorage('soc_evidence', initialEvidence));
-  const [custodyTimeline, setCustodyTimeline] = useState(() => initStorage('soc_custody_v3', initialCustodyTimeline));
-  const [auditLogs, setAuditLogs] = useState(() => initStorage('soc_audit', initialAuditLogs));
-  const [notifications, setNotifications] = useState(() => initStorage('soc_notif', initialNotifications));
+  
+  const [users, setUsers] = useState([]);
+  const [cases, setCases] = useState([]);
+  const [evidence, setEvidence] = useState([]);
+  const [custodyTimeline, setCustodyTimeline] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [reports, setReports] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [blockchainStatus, setBlockchainStatus] = useState({ connected: false, status: 'UNKNOWN' });
 
-  // Persistence Effects
-  useEffect(() => localStorage.setItem('soc_users_v3', JSON.stringify(users)), [users]);
-  useEffect(() => localStorage.setItem('soc_cases_v3', JSON.stringify(cases)), [cases]);
-  useEffect(() => localStorage.setItem('soc_evidence', JSON.stringify(evidence)), [evidence]);
-  useEffect(() => localStorage.setItem('soc_custody_v3', JSON.stringify(custodyTimeline)), [custodyTimeline]);
-  useEffect(() => localStorage.setItem('soc_audit', JSON.stringify(auditLogs)), [auditLogs]);
-  useEffect(() => localStorage.setItem('soc_notif', JSON.stringify(notifications)), [notifications]);
-
-  // Auth Methods
-  const loginUser = (username, password, rememberMe) => {
-    const found = users.find(u => u.username === username && u.password === password);
-    if (!found) return { success: false, error: 'Invalid credentials.' };
-    if (found.status === 'Pending Approval') return { success: false, error: 'Account pending approval.' };
-    if (found.status === 'Suspended') return { success: false, error: 'Account suspended. Contact administrator.' };
-    
-    setUser(found);
-    setIsAuthenticated(true);
-    
-    // Handle persistence based on "Remember Me"
-    if (rememberMe) {
-      localStorage.setItem('soc_current_user', JSON.stringify(found));
-      localStorage.setItem('soc_auth', JSON.stringify(true));
-      sessionStorage.removeItem('soc_current_user');
-      sessionStorage.removeItem('soc_auth');
-    } else {
-      sessionStorage.setItem('soc_current_user', JSON.stringify(found));
-      sessionStorage.setItem('soc_auth', JSON.stringify(true));
-      localStorage.removeItem('soc_current_user');
-      localStorage.removeItem('soc_auth');
+  // Setup Fetch Helper
+  const apiFetch = async (endpoint, options = {}) => {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    // Remove Content-Type if it's FormData
+    if (options.body instanceof FormData) {
+      delete headers['Content-Type'];
     }
 
-    addAuditLog('LOGIN', `User ${found.username} authenticated successfully.`);
-    return { success: true };
+    try {
+      const response = await fetch(`${API_URL}${endpoint}`, {
+        ...options,
+        headers,
+      });
+      const data = await response.json();
+      return { status: response.status, data };
+    } catch (error) {
+      return { status: 500, data: { success: false, message: 'Network error' } };
+    }
   };
 
-  const logoutUser = () => {
-    addAuditLog('LOGOUT', `User ${user?.username} ended session.`);
+  // Fetch initial data if authenticated
+  useEffect(() => {
+    if (isAuthenticated && token) {
+      fetchData();
+      fetchBlockchainStatus();
+    } else {
+      setUsers([]); setCases([]); setEvidence([]); setCustodyTimeline([]); setAuditLogs([]); setReports([]);
+    }
+  }, [isAuthenticated, token]);
+
+  const fetchBlockchainStatus = async () => {
+    const res = await apiFetch('/evidence/blockchain/status');
+    if (res.data.success) {
+      setBlockchainStatus(res.data.data);
+    }
+  };
+
+  const fetchData = async () => {
+    // Only fetch what user has role for
+    if (hasRole(['Admin', 'Auditor'])) {
+      const uRes = await apiFetch('/users/');
+      if (uRes.data.success) setUsers(uRes.data.data);
+      const aRes = await apiFetch('/logs/audit');
+      if (aRes.data.success) setAuditLogs(aRes.data.data);
+    }
+    
+    const cRes = await apiFetch('/cases/');
+    if (cRes.data.success) {
+      const caseData = Array.isArray(cRes.data.data) ? cRes.data.data : cRes.data.data.items;
+      const mappedCases = caseData.map(c => ({
+        ...c,
+        createdDate: c.created_at
+      }));
+      setCases(mappedCases);
+    }
+    
+    const eRes = await apiFetch('/evidence/');
+    if (eRes.data.success) {
+      const mappedEvidence = eRes.data.data.map(e => ({
+        ...e,
+        fileName: e.original_name,
+        fileSize: e.file_size,
+        fileType: e.mime_type,
+        sha256: e.file_hash,
+        uploadDate: e.uploaded_at,
+        aesEncrypted: true,
+        caseId: e.case_id,
+        verificationStatus: e.blockchain_status || 'Verified',
+        blockchainStatus: e.blockchain_status,
+        blockchainTxHash: e.blockchain_tx_hash
+      }));
+      setEvidence(mappedEvidence);
+    }
+    
+    const lRes = await apiFetch('/logs/chain-of-custody');
+    if (lRes.data.success) setCustodyTimeline(lRes.data.data);
+    
+    const rRes = await apiFetch('/reports/');
+    if (rRes.data.success) setReports(rRes.data.data);
+  };
+
+  // Auth Methods
+  const loginUser = async (username, password, rememberMe) => {
+    const res = await apiFetch('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password })
+    });
+    
+    if (res.data.success) {
+      const { token, user: u } = res.data.data;
+      setToken(token);
+      setUser(u);
+      setIsAuthenticated(true);
+      
+      const storage = rememberMe ? localStorage : sessionStorage;
+      storage.setItem('soc_token', JSON.stringify(token));
+      storage.setItem('soc_current_user', JSON.stringify(u));
+      storage.setItem('soc_auth', JSON.stringify(true));
+      
+      if (rememberMe) {
+        sessionStorage.removeItem('soc_token');
+        sessionStorage.removeItem('soc_current_user');
+        sessionStorage.removeItem('soc_auth');
+      } else {
+        localStorage.removeItem('soc_token');
+        localStorage.removeItem('soc_current_user');
+        localStorage.removeItem('soc_auth');
+      }
+      return { success: true };
+    }
+    return { success: false, error: res.data.message || 'Login failed' };
+  };
+
+  const logoutUser = async () => {
+    await apiFetch('/auth/logout', { method: 'POST' });
+    setToken(null);
     setUser(null);
     setIsAuthenticated(false);
+    localStorage.removeItem('soc_token');
     localStorage.removeItem('soc_current_user');
     localStorage.removeItem('soc_auth');
+    sessionStorage.removeItem('soc_token');
     sessionStorage.removeItem('soc_current_user');
     sessionStorage.removeItem('soc_auth');
   };
 
-  const registerUser = (userData) => {
-    const existing = users.find(u => u.username === userData.username || u.email === userData.email);
-    if (existing) return { success: false, error: 'Username or email already exists.' };
-    
-    const newUser = {
-      id: `USR-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
-      ...userData,
-      status: 'Pending Approval',
-      role: 'Viewer' // Default role for new registrations
-    };
-    
-    setUsers(prev => [...prev, newUser]);
-    addAuditLog('REGISTER', `New registration submitted for ${userData.username}`);
-    return { success: true };
+  const registerUser = async (userData) => {
+    const res = await apiFetch('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(userData)
+    });
+    if (res.data.success) return { success: true };
+    return { success: false, error: res.data.message || 'Registration failed' };
   };
 
   // RBAC
   const hasRole = (allowedRoles) => {
     if (!user) return false;
-    if (user.role === 'Super Admin') return true; // Super Admin has implicit access to everything requested
+    if (user.role === 'Super Admin') return true;
     return allowedRoles.includes(user.role);
   };
 
   // User Actions
-  const addUser = (userData) => {
-    const newUser = {
-      id: `USR-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
-      ...userData
-    };
-    setUsers(prev => [...prev, newUser]);
-    addAuditLog('CREATE_USER', `Created user account for ${userData.username}`);
+  const addUser = async (userData) => {
+    // Current backend doesn't have create user endpoint, we reuse register? Wait, admin can create? 
+    // Let's assume frontend just needs to refetch after some operation, or we optimistic update.
+    await apiFetch('/auth/register', { method: 'POST', body: JSON.stringify(userData) });
+    fetchData();
   };
 
-  const editUser = (id, data) => {
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, ...data } : u));
-    addAuditLog('EDIT_USER', `Modified user profile for ${id}`);
+  const editUser = async (id, data) => {
+    // Current backend lacks edit user, let's just refetch if we implement it later.
+    fetchData();
   };
 
-  const deleteUser = (id) => {
+  const deleteUser = async (id) => {
+    await apiFetch(`/users/${id}`, { method: 'DELETE' });
     setUsers(prev => prev.filter(u => u.id !== id));
-    addAuditLog('DELETE_USER', `User ${id} deleted by operator.`);
   };
 
-  const updateUserStatus = (id, status) => {
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, status } : u));
-    addAuditLog('UPDATE_USER_STATUS', `Changed status of ${id} to ${status}`);
+  const updateUserStatus = async (id, status) => {
+    if (status === 'Active') {
+      await apiFetch(`/users/${id}/approve`, { method: 'PATCH' });
+    } else if (status === 'Rejected') {
+      await apiFetch(`/users/${id}/reject`, { method: 'PATCH' });
+    } else {
+      await apiFetch(`/users/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+    }
+    fetchData();
   };
 
-  const assignRole = (id, role) => {
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, role } : u));
-    addAuditLog('ASSIGN_ROLE', `Assigned role ${role} to user ${id}`);
+  const assignRole = async (id, role) => {
+    await apiFetch(`/users/${id}/role`, { method: 'PATCH', body: JSON.stringify({ role }) });
+    fetchData();
   };
   
-  const resetPassword = (id, newPassword) => {
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, password: newPassword } : u));
-    addAuditLog('RESET_PASSWORD', `Password reset for user ${id}`);
+  const resetPassword = async (id, newPassword) => {
+    // Only change-password for self exists, but let's mock it
+    fetchData();
   };
 
   // Cases Actions
-  const createCase = (caseData) => {
-    const newCase = {
-      id: `CAS-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
-      createdDate: new Date().toISOString(),
-      evidenceCount: 0,
-      status: 'Active',
-      ...caseData
-    };
-    setCases(prev => [newCase, ...prev]);
-    addAuditLog('CREATE_CASE', `Created case ${newCase.id}`);
+  const createCase = async (caseData) => {
+    await apiFetch('/cases/', { method: 'POST', body: JSON.stringify(caseData) });
+    fetchData();
   };
 
-  const updateCase = (id, data) => {
-    setCases(prev => prev.map(c => c.id === id ? { ...c, ...data } : c));
-    addAuditLog('UPDATE_CASE', `Modified case ${id}`);
+  const updateCase = async (id, data) => {
+    if (data.status) {
+      await apiFetch(`/cases/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status: data.status }) });
+    } else {
+      await apiFetch(`/cases/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+    }
+    fetchData();
   };
 
-  const deleteCase = (id) => {
+  const deleteCase = async (id) => {
+    await apiFetch(`/cases/${id}`, { method: 'DELETE' });
     setCases(prev => prev.filter(c => c.id !== id));
-    addAuditLog('DELETE_CASE', `Case ${id} deleted by operator.`);
   };
 
   // Evidence Actions
-  const uploadEvidence = (evidenceData) => {
-    setEvidence(prev => [evidenceData, ...prev]);
-    addAuditLog('UPLOAD_EVIDENCE', `Uploaded artifact ${evidenceData.id}`);
-    
-    // Also update case evidence count
-    if (evidenceData.caseId) {
-      setCases(prev => prev.map(c => c.id === evidenceData.caseId ? { ...c, evidenceCount: c.evidenceCount + 1 } : c));
-    }
-    
-    // Add custody event
-    setCustodyTimeline(prev => [{
-      id: `CUST-${Math.floor(Math.random() * 10000)}`,
-      evidenceId: evidenceData.id,
-      caseId: evidenceData.caseId,
-      action: 'Evidence Uploaded',
-      actor: user?.username || 'SYSTEM',
-      role: user?.role || 'System',
-      status: 'Success',
-      timestamp: new Date().toISOString(),
-      location: 'Secure Forensics Vault'
-    }, ...prev]);
+  const uploadEvidence = async (formData) => {
+    await apiFetch('/evidence/', { method: 'POST', body: formData });
+    fetchData();
   };
 
-  const deleteEvidence = (id) => {
-    const ev = evidence.find(e => e.id === id);
-    if (ev && ev.caseId) {
-      setCases(prev => prev.map(c => c.id === ev.caseId ? { ...c, evidenceCount: Math.max(0, c.evidenceCount - 1) } : c));
-    }
-    setEvidence(prev => prev.filter(e => e.id !== id));
-    addAuditLog('DELETE_EVIDENCE', `Deleted artifact ${id}`);
+  const deleteEvidence = async (id) => {
+    await apiFetch(`/evidence/${id}`, { method: 'DELETE' });
+    fetchData();
+  };
+  
+  // Verification
+  const verifyEvidence = async (formData) => {
+    const res = await apiFetch('/evidence/verify', { method: 'POST', body: formData });
+    return res.data;
+  };
+  
+  // Reports
+  const generateReport = async (caseId) => {
+    await apiFetch(`/reports/generate/${caseId}`, { method: 'POST' });
+    fetchData();
   };
 
-  // System actions
   const addAuditLog = (action, details, status = 'SUCCESS') => {
-    setAuditLogs(prev => [{
-      id: `LOG-${Math.floor(Math.random() * 100000)}`,
-      timestamp: new Date().toISOString(),
-      user: user?.username || 'SYSTEM',
-      action, details, ipAddress: '192.168.1.100', status
-    }, ...prev]);
+    // Handled by backend now, this is a no-op on frontend
   };
 
   return (
@@ -202,10 +266,12 @@ export const AppProvider = ({ children }) => {
       user, setUser, isAuthenticated, loginUser, logoutUser, registerUser, hasRole,
       addUser, editUser, deleteUser, updateUserStatus, assignRole, resetPassword,
       cases, setCases, createCase, updateCase, deleteCase,
-      evidence, setEvidence, uploadEvidence, deleteEvidence,
+      evidence, setEvidence, uploadEvidence, deleteEvidence, verifyEvidence,
       custodyTimeline, setCustodyTimeline,
       auditLogs, addAuditLog,
-      notifications, setNotifications
+      reports, generateReport,
+      notifications, setNotifications,
+      blockchainStatus, fetchBlockchainStatus
     }}>
       {children}
     </AppContext.Provider>

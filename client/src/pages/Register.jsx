@@ -24,7 +24,7 @@ export default function Register() {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleRegister = (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
     setError('');
     
@@ -34,7 +34,7 @@ export default function Register() {
     }
 
     const { confirmPassword, ...userData } = formData;
-    const result = registerUser(userData);
+    const result = await registerUser(userData);
     
     if (result.success) {
       setSuccess("Registration submitted successfully. Waiting for Super Admin approval.");
