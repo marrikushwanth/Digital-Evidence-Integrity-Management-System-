@@ -8,6 +8,8 @@ import SocLayout from './components/layout/SocLayout';
 // Pages
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import AccessDenied from './pages/AccessDenied';
 import Dashboard from './pages/Dashboard';
 import Cases from './pages/Cases';
@@ -31,11 +33,19 @@ const RoleGuard = ({ children, allowedRoles }) => {
   return children;
 };
 
+// Public Route Wrapper
+const PublicRoute = ({ children }) => {
+  const { isAuthenticated } = useApp();
+  return isAuthenticated ? <Navigate to="/" replace /> : children;
+};
+
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
+      <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+      <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+      <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+      <Route path="/reset-password" element={<PublicRoute><ResetPassword /></PublicRoute>} />
       <Route path="/403" element={<AccessDenied />} />
       
       {/* Protected Routes inside SocLayout */}

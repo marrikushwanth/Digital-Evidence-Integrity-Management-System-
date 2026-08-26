@@ -28,5 +28,13 @@ class User(db.Model):
     status = db.Column(db.String(50), default='Pending Approval') # 'Pending Approval', 'Active', 'Suspended'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
+    # Phase 4 Additions
+    mfa_enabled = db.Column(db.Boolean, default=False)
+    mfa_secret = db.Column(db.String(255), nullable=True) # Encrypted
+    failed_login_attempts = db.Column(db.Integer, default=0)
+    locked_until = db.Column(db.DateTime, nullable=True)
+    password_changed_at = db.Column(db.DateTime, default=datetime.utcnow)
+    email_notifications_enabled = db.Column(db.Boolean, default=True)
+    
     cases_created = db.relationship('Case', backref='creator', lazy=True)
     evidence_uploaded = db.relationship('Evidence', backref='uploader', lazy=True)

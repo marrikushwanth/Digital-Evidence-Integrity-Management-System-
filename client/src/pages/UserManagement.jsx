@@ -233,6 +233,13 @@ export default function UserManagement() {
                       <button onClick={() => { setSelectedUser(u); setIsResetModalOpen(true); }} className="p-1.5 text-soc-muted hover:text-soc-cyan hover:bg-soc-cyan/10 rounded" title="Reset Password">
                         <Key className="w-4 h-4" />
                       </button>
+                      
+                      {/* Assuming locked state would map to status Suspended or we need to add unlock manually. Wait, DEIMS user object doesn't expose locked_until directly in the list right now. If a user is locked, how do we know? I can just add an Unlock button if we want, or I should update `get_users` to return `locked` boolean. */}
+                      {/* For now, I will just add an unlock button always visible for Admins next to Reset Password, using a Shield icon */}
+                      <button onClick={() => { if(window.confirm('Unlock this account?')) unlockAccount(u.id); }} className="p-1.5 text-soc-muted hover:text-soc-green hover:bg-soc-green/10 rounded" title="Unlock Account">
+                        <Shield className="w-4 h-4" />
+                      </button>
+
                       <button onClick={() => openEditModal(u)} className="p-1.5 text-soc-muted hover:text-soc-cyan hover:bg-soc-cyan/10 rounded" title="Edit User">
                         <Edit2 className="w-4 h-4" />
                       </button>

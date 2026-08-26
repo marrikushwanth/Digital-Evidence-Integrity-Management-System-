@@ -20,7 +20,7 @@ def test_register_user(client):
     response = client.post('/api/auth/register', json={
         'username': 'newuser',
         'email': 'new@test.local',
-        'password': 'password123',
+        'password': 'Password123!',
         'full_name': 'New User'
     })
     assert response.status_code == 201
@@ -32,7 +32,7 @@ def test_admin_create_user(client, admin_token):
         json={
             'username': 'created_by_admin',
             'email': 'created@test.local',
-            'password': 'password123',
+            'password': 'Password123!',
             'full_name': 'Created User',
             'role': 'Investigator'
         }

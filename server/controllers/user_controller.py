@@ -6,6 +6,7 @@ from models.user import User, Role
 from utils.response import success_response, error_response
 from utils.validators import is_valid_email
 from utils.logger import log_audit, log_chain_of_custody
+from utils.notifier import send_security_notification
 
 def get_users(request):
     page = request.args.get('page', 1, type=int)
@@ -199,7 +200,8 @@ def assign_role(user_id, request):
         
     user.role_id = role.id
     db.session.commit()
-    log_audit('ASSIGN_ROLE', f"Assigned role {role.name} to {user.username}")
+    log_audit('ROLE_CHANGED', f"Assigned role {role.name} to {user.username}")
+    send_security_notification(user, 'Role Changed', {'new_role': role.name})
     return success_response('Role assigned successfully')
 
 def change_status(user_id, request):
@@ -238,3 +240,30 @@ def delete_user(user_id):
     db.session.commit()
     log_audit('DELETE_USER', f"Deleted user {username}")
     return success_response('User deleted successfully')
+    
+def unlock_account(user_id):
+    user = User.query.get(user_id)
+    if not user:
+        return error_response('User not found', status_code=404)
+        
+    user.locked_until = None
+    user.failed_login_attempts = 0
+    db.session.commit()
+    
+    admin_name = g.user.username if hasattr(g, 'user') else 'SYSTEM'
+    log_audit('ACCOUNT_UNLOCKED', f"Admin {admin_name} unlocked user {user.username}")
+    send_security_notification(user, 'Account Unlocked', {'unlocked_by': admin_name})
+    return success_response('User account unlocked successfully')
+
+def update_preferences(request):
+    if not request.is_json:
+        return error_response('Request must be JSON', status_code=415)
+        
+    data = request.get_json()
+    user = g.user
+    
+    if 'email_notifications_enabled' in data:
+        user.email_notifications_enabled = data['email_notifications_enabled']
+        
+    db.session.commit()
+    return success_response('Preferences updated successfully')

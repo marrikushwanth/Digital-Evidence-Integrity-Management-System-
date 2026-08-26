@@ -57,3 +57,38 @@ class CryptoService:
                 
             f_out.write(unpadder.update(decryptor.finalize()))
             f_out.write(unpadder.finalize())
+
+    @staticmethod
+    def encrypt_data(data: str) -> bytes:
+        """Encrypts a string using AES-256-CBC and returns bytes (IV + Ciphertext)."""
+        key = CryptoService._get_key()
+        iv = os.urandom(16)
+        
+        cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+        encryptor = cipher.encryptor()
+        padder = padding.PKCS7(algorithms.AES.block_size).padder()
+        
+        padded_data = padder.update(data.encode('utf-8')) + padder.finalize()
+        ciphertext = encryptor.update(padded_data) + encryptor.finalize()
+        
+        import base64
+        return base64.b64encode(iv + ciphertext)
+        
+    @staticmethod
+    def decrypt_data(encrypted_data_b64: bytes) -> str:
+        """Decrypts a base64 encoded string containing IV + Ciphertext."""
+        import base64
+        key = CryptoService._get_key()
+        
+        raw_data = base64.b64decode(encrypted_data_b64)
+        iv = raw_data[:16]
+        ciphertext = raw_data[16:]
+        
+        cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+        decryptor = cipher.decryptor()
+        unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
+        
+        decrypted_padded = decryptor.update(ciphertext) + decryptor.finalize()
+        data = unpadder.update(decrypted_padded) + unpadder.finalize()
+        
+        return data.decode('utf-8')

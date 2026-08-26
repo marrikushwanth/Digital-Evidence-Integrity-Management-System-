@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Shield, Lock, User, TerminalSquare, Eye, EyeOff } from 'lucide-react';
+import { Shield, Lock, User, TerminalSquare, Eye, EyeOff, Key } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 export default function Login() {
@@ -9,18 +9,33 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const [forgotPwd, setForgotPwd] = useState(false);
-  const { loginUser } = useApp();
+  const [mfaChallenge, setMfaChallenge] = useState(false);
+  const [tempUserId, setTempUserId] = useState(null);
+  const [mfaCode, setMfaCode] = useState('');
+  
+  const { loginUser, verifyMfa } = useApp();
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (forgotPwd) {
-      alert("Password reset instructions have been sent to the registered email address if it exists.");
-      setForgotPwd(false);
-      return;
-    }
+    setError('');
     const result = await loginUser(username, password, rememberMe);
+    if (result.success) {
+      if (result.mfaRequired) {
+        setMfaChallenge(true);
+        setTempUserId(result.tempUserId);
+      } else {
+        navigate('/');
+      }
+    } else {
+      setError(result.error);
+    }
+  };
+
+  const handleMfaSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    const result = await verifyMfa(tempUserId, mfaCode, rememberMe);
     if (result.success) {
       navigate('/');
     } else {
@@ -47,114 +62,126 @@ export default function Login() {
           </p>
         </div>
         
-        <form onSubmit={handleLogin} className="p-8 space-y-6">
-          {error && (
-            <div className="bg-rose-950/40 border border-rose-500/50 text-soc-red text-xs font-mono-tabular p-3 rounded-md flex items-start gap-2">
-              <TerminalSquare className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {!forgotPwd ? (
-            <>
-              <div className="space-y-2">
-                <label className="text-[10px] font-mono-tabular text-soc-muted uppercase tracking-wider block">Operator ID / Username</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-soc-muted" />
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="w-full bg-[#03070f] border border-soc-panel-border rounded-md py-2.5 pl-10 pr-3 text-sm text-soc-text focus:outline-none focus:border-soc-cyan focus:ring-1 focus:ring-soc-cyan font-mono-tabular"
-                    placeholder="Enter username"
-                    required
-                  />
-                </div>
+        {mfaChallenge ? (
+          <form onSubmit={handleMfaSubmit} className="p-8 space-y-6">
+            {error && (
+              <div className="bg-rose-950/40 border border-rose-500/50 text-soc-red text-xs font-mono-tabular p-3 rounded-md flex items-start gap-2">
+                <TerminalSquare className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{error}</span>
               </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-mono-tabular text-soc-muted uppercase tracking-wider block">Passkey</label>
-                  <button type="button" onClick={() => setForgotPwd(true)} className="text-[10px] text-soc-cyan hover:underline font-mono-tabular">
-                    Forgot Password?
-                  </button>
-                </div>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-soc-muted" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-[#03070f] border border-soc-panel-border rounded-md py-2.5 pl-10 pr-10 text-sm text-soc-text focus:outline-none focus:border-soc-cyan focus:ring-1 focus:ring-soc-cyan font-mono-tabular"
-                    placeholder="••••••••"
-                    required
-                  />
-                  <button 
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)} 
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-soc-muted hover:text-soc-cyan"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center">
-                <input 
-                  type="checkbox" 
-                  id="rememberMe" 
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 bg-[#03070f] border-soc-panel-border rounded text-soc-cyan focus:ring-soc-cyan accent-soc-cyan" 
+            )}
+            
+            <div className="space-y-2">
+              <label className="text-[10px] font-mono-tabular text-soc-muted uppercase tracking-wider block">Authenticator Code (TOTP) or Backup Code</label>
+              <div className="relative">
+                <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-soc-muted" />
+                <input
+                  type="text"
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value)}
+                  className="w-full bg-[#03070f] border border-soc-panel-border rounded-md py-2.5 pl-10 pr-3 text-sm text-soc-text focus:outline-none focus:border-soc-cyan focus:ring-1 focus:ring-soc-cyan font-mono-tabular"
+                  placeholder="000000"
+                  required
+                  autoFocus
                 />
-                <label htmlFor="rememberMe" className="ml-2 text-xs font-mono-tabular text-soc-muted cursor-pointer">
-                  Maintain persistent session (Remember Me)
-                </label>
               </div>
+            </div>
+            
+            <button
+              type="submit"
+              className="w-full py-3 bg-soc-cyan/10 border border-soc-cyan text-soc-cyan text-xs font-mono-tabular font-bold uppercase tracking-widest rounded-md hover:bg-soc-cyan hover:text-black transition-colors shadow-[0_0_15px_rgba(0,240,255,0.2)] hover:shadow-[0_0_25px_rgba(0,240,255,0.4)]"
+            >
+              Verify Identity
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMfaChallenge(false); setMfaCode(''); }}
+              className="w-full py-2 bg-transparent text-soc-muted text-xs font-mono-tabular hover:text-soc-text transition-colors"
+            >
+              Back to Login
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleLogin} className="p-8 space-y-6">
+            {error && (
+              <div className="bg-rose-950/40 border border-rose-500/50 text-soc-red text-xs font-mono-tabular p-3 rounded-md flex items-start gap-2">
+                <TerminalSquare className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
 
-              <button
-                type="submit"
-                className="w-full py-3 bg-soc-cyan/10 border border-soc-cyan text-soc-cyan text-xs font-mono-tabular font-bold uppercase tracking-widest rounded-md hover:bg-soc-cyan hover:text-black transition-colors shadow-[0_0_15px_rgba(0,240,255,0.2)] hover:shadow-[0_0_25px_rgba(0,240,255,0.4)]"
-              >
-                Initiate Connection
-              </button>
-            </>
-          ) : (
-            <>
-              <div className="space-y-2">
-                <label className="text-[10px] font-mono-tabular text-soc-muted uppercase tracking-wider block">Registered Email or Username</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-soc-muted" />
-                  <input
-                    type="text"
-                    className="w-full bg-[#03070f] border border-soc-panel-border rounded-md py-2.5 pl-10 pr-3 text-sm text-soc-text focus:outline-none focus:border-soc-cyan focus:ring-1 focus:ring-soc-cyan font-mono-tabular"
-                    placeholder="Enter email or username"
-                    required
-                  />
+            {!forgotPwd ? (
+              <>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-mono-tabular text-soc-muted uppercase tracking-wider block">Operator ID / Username</label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-soc-muted" />
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className="w-full bg-[#03070f] border border-soc-panel-border rounded-md py-2.5 pl-10 pr-3 text-sm text-soc-text focus:outline-none focus:border-soc-cyan focus:ring-1 focus:ring-soc-cyan font-mono-tabular"
+                      placeholder="Enter username"
+                      required
+                    />
+                  </div>
                 </div>
-              </div>
-              <button
-                type="submit"
-                className="w-full py-3 bg-soc-cyan/10 border border-soc-cyan text-soc-cyan text-xs font-mono-tabular font-bold uppercase tracking-widest rounded-md hover:bg-soc-cyan hover:text-black transition-colors shadow-[0_0_15px_rgba(0,240,255,0.2)]"
-              >
-                Request Password Reset
-              </button>
-              <button
-                type="button"
-                onClick={() => setForgotPwd(false)}
-                className="w-full py-2 bg-transparent text-soc-muted text-xs font-mono-tabular hover:text-soc-text transition-colors"
-              >
-                Back to Login
-              </button>
-            </>
-          )}
-          
-          <div className="text-center mt-6">
-            <p className="text-xs text-soc-muted">
-              Don't have an access node? <Link to="/register" className="text-soc-cyan hover:underline">Request clearance</Link>
-            </p>
-          </div>
-        </form>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-mono-tabular text-soc-muted uppercase tracking-wider block">Passkey</label>
+                    <button type="button" onClick={() => navigate('/forgot-password')} className="text-[10px] text-soc-cyan hover:underline font-mono-tabular">
+                      Forgot Password?
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-soc-muted" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full bg-[#03070f] border border-soc-panel-border rounded-md py-2.5 pl-10 pr-10 text-sm text-soc-text focus:outline-none focus:border-soc-cyan focus:ring-1 focus:ring-soc-cyan font-mono-tabular"
+                      placeholder="••••••••"
+                      required
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)} 
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-soc-muted hover:text-soc-cyan"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center">
+                  <input 
+                    type="checkbox" 
+                    id="rememberMe" 
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="w-4 h-4 bg-[#03070f] border-soc-panel-border rounded text-soc-cyan focus:ring-soc-cyan accent-soc-cyan" 
+                  />
+                  <label htmlFor="rememberMe" className="ml-2 text-xs font-mono-tabular text-soc-muted cursor-pointer">
+                    Maintain persistent session (Remember Me)
+                  </label>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-soc-cyan/10 border border-soc-cyan text-soc-cyan text-xs font-mono-tabular font-bold uppercase tracking-widest rounded-md hover:bg-soc-cyan hover:text-black transition-colors shadow-[0_0_15px_rgba(0,240,255,0.2)] hover:shadow-[0_0_25px_rgba(0,240,255,0.4)]"
+                >
+                  Initiate Connection
+                </button>
+              </>
+            
+            <div className="text-center mt-6">
+              <p className="text-xs text-soc-muted">
+                Don't have an access node? <Link to="/register" className="text-soc-cyan hover:underline">Request clearance</Link>
+              </p>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

@@ -63,3 +63,14 @@ def change_status(user_id):
 @role_required(['Admin'])
 def delete_user(user_id):
     return user_controller.delete_user(user_id)
+
+@user_bp.route('/<user_id>/unlock', methods=['POST'])
+@jwt_required
+@role_required(['Super Admin', 'Admin'])
+def unlock_user(user_id):
+    return user_controller.unlock_account(user_id)
+
+@user_bp.route('/me/preferences', methods=['PATCH'])
+@jwt_required
+def update_preferences():
+    return user_controller.update_preferences(request)
