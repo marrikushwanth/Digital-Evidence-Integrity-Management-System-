@@ -5,7 +5,7 @@ import io
 import base64
 import secrets
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from flask import g, request
 from models.db import db
 from models.user import User, Role
@@ -99,14 +99,14 @@ def login_user(request):
         log_audit('LOGIN_FAILED', f"Failed login attempt for {data.get('username')}", "FAILURE")
         return error_response('Invalid credentials', status_code=401)
 
-    if user.locked_until and user.locked_until > datetime.utcnow():
+    if user.locked_until and user.locked_until.replace(tzinfo=timezone.utc) > datetime.now(timezone.utc):
         log_audit('LOGIN_FAILED', f"Login attempt on locked account {user.username}", "FAILURE")
         return error_response('Account temporarily locked. Try again later.', status_code=423)
         
     if not bcrypt.checkpw(data['password'].encode('utf-8'), user.password_hash.encode('utf-8')):
         user.failed_login_attempts += 1
         if user.failed_login_attempts >= MAX_LOGIN_ATTEMPTS:
-            user.locked_until = datetime.utcnow() + timedelta(minutes=LOCKOUT_DURATION_MINUTES)
+            user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=LOCKOUT_DURATION_MINUTES)
             log_audit('ACCOUNT_LOCKED', f"Account locked for {user.username} after {MAX_LOGIN_ATTEMPTS} failed attempts.", "SUCCESS")
             send_security_notification(user, 'Account Locked', {'reason': 'Too many failed login attempts', 'duration_minutes': LOCKOUT_DURATION_MINUTES})
         db.session.commit()
@@ -123,7 +123,7 @@ def login_user(request):
     if user.status == 'Suspended':
         return error_response('Account suspended', status_code=403)
         
-    if user.password_changed_at and user.password_changed_at < datetime.utcnow() - timedelta(days=PASSWORD_EXPIRY_DAYS):
+    if user.password_changed_at and user.password_changed_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc) - timedelta(days=PASSWORD_EXPIRY_DAYS):
         return success_response('Password expired', {'password_expired': True, 'temp_user_id': user.id})
         
     if user.mfa_enabled:
@@ -152,7 +152,7 @@ def complete_login(user, request):
         ip_address=ip_addr,
         user_agent=ua,
         device_info=platform,
-        expires_at=datetime.utcnow() + timedelta(days=7)
+        expires_at=datetime.now(timezone.utc) + timedelta(days=7)
     )
     db.session.add(session)
     db.session.commit()
@@ -179,7 +179,7 @@ def verify_mfa_login(request):
     if 'temp_user_id' not in data or 'token' not in data:
         return error_response('Missing parameters', status_code=400)
         
-    user = User.query.get(data['temp_user_id'])
+    user = db.session.get(User, data['temp_user_id'])
     if not user or not user.mfa_enabled:
         return error_response('Invalid request', status_code=400)
         
@@ -196,7 +196,7 @@ def verify_mfa_login(request):
         recovery = RecoveryCode.query.filter_by(user_id=user.id, code_hash=token_hash, used=False).first()
         if recovery:
             recovery.used = True
-            recovery.used_at = datetime.utcnow()
+            recovery.used_at = datetime.now(timezone.utc)
             db.session.commit()
             log_audit('MFA_RECOVERY_USED', f"User {user.username} logged in using a recovery code.", "SUCCESS")
             send_security_notification(user, 'Recovery Code Used', {'message': 'A recovery code was used to login.'})
@@ -224,8 +224,8 @@ def refresh_token(request):
     from flask import current_app
     
     access_payload = {
-        'exp': datetime.utcnow() + timedelta(minutes=15),
-        'iat': datetime.utcnow(),
+        'exp': datetime.now(timezone.utc) + timedelta(minutes=15),
+        'iat': datetime.now(timezone.utc),
         'sub': user.id,
         'type': 'access',
         'jti': session.session_token
@@ -237,7 +237,7 @@ def refresh_token(request):
         algorithm='HS256'
     )
     
-    session.last_used_at = datetime.utcnow()
+    session.last_used_at = datetime.now(timezone.utc)
     db.session.commit()
     
     return success_response('Token refreshed', {
@@ -246,7 +246,7 @@ def refresh_token(request):
 
 def logout_user():
     if hasattr(g, 'session'):
-        g.session.revoked_at = datetime.utcnow()
+        g.session.revoked_at = datetime.now(timezone.utc)
         db.session.commit()
         log_audit('SESSION_REVOKED', "User ended session.", "SUCCESS")
     return success_response('Logout successful')
@@ -254,7 +254,7 @@ def logout_user():
 def logout_all_sessions():
     sessions = ActiveSession.query.filter_by(user_id=g.user.id, revoked_at=None).all()
     for s in sessions:
-        s.revoked_at = datetime.utcnow()
+        s.revoked_at = datetime.now(timezone.utc)
     db.session.commit()
     log_audit('LOGOUT_ALL', "User revoked all active sessions.", "SUCCESS")
     return success_response('All sessions revoked')
@@ -279,7 +279,7 @@ def revoke_session(session_id):
     if not session:
         return error_response('Session not found or already revoked', status_code=404)
         
-    session.revoked_at = datetime.utcnow()
+    session.revoked_at = datetime.now(timezone.utc)
     db.session.commit()
     log_audit('SESSION_REVOKED', f"User revoked session {session_id}.", "SUCCESS")
     return success_response('Session revoked successfully')
@@ -325,7 +325,7 @@ def change_password(request):
             
     hashed = bcrypt.hashpw(data['new_password'].encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     user.password_hash = hashed
-    user.password_changed_at = datetime.utcnow()
+    user.password_changed_at = datetime.now(timezone.utc)
     
     new_hist = PasswordHistory(user_id=user.id, password_hash=hashed)
     db.session.add(new_hist)
@@ -354,7 +354,7 @@ def request_password_reset(request):
     rt = ResetToken(
         user_id=user.id,
         token_hash=token_hash,
-        expires_at=datetime.utcnow() + timedelta(minutes=15)
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=15)
     )
     db.session.add(rt)
     db.session.commit()
@@ -376,7 +376,7 @@ def verify_reset_token(request):
     token_hash = hashlib.sha256(data['token'].encode('utf-8')).hexdigest()
     rt = ResetToken.query.filter_by(token_hash=token_hash, used=False).first()
     
-    if not rt or rt.expires_at < datetime.utcnow():
+    if not rt or rt.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
         return error_response('Invalid or expired token', status_code=400)
         
     return success_response('Token is valid')
@@ -392,10 +392,10 @@ def complete_password_reset(request):
     token_hash = hashlib.sha256(data['token'].encode('utf-8')).hexdigest()
     rt = ResetToken.query.filter_by(token_hash=token_hash, used=False).first()
     
-    if not rt or rt.expires_at < datetime.utcnow():
+    if not rt or rt.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
         return error_response('Invalid or expired token', status_code=400)
         
-    user = User.query.get(rt.user_id)
+    user = db.session.get(User, rt.user_id)
     if not user:
         return error_response('User not found', status_code=404)
         
@@ -410,7 +410,7 @@ def complete_password_reset(request):
             
     hashed = bcrypt.hashpw(data['new_password'].encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     user.password_hash = hashed
-    user.password_changed_at = datetime.utcnow()
+    user.password_changed_at = datetime.now(timezone.utc)
     user.failed_login_attempts = 0
     user.locked_until = None
     
@@ -422,7 +422,7 @@ def complete_password_reset(request):
     # Invalidate all active sessions
     sessions = ActiveSession.query.filter_by(user_id=user.id, revoked_at=None).all()
     for s in sessions:
-        s.revoked_at = datetime.utcnow()
+        s.revoked_at = datetime.now(timezone.utc)
         
     db.session.commit()
     

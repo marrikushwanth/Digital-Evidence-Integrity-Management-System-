@@ -13,7 +13,7 @@ def upload_evidence():
 @evidence_bp.route('/', methods=['GET'])
 @jwt_required
 def get_all_evidence():
-    return evidence_controller.get_all_evidence()
+    return evidence_controller.get_all_evidence(request)
 
 @evidence_bp.route('/<evidence_id>', methods=['GET'])
 @jwt_required

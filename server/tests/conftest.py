@@ -10,7 +10,7 @@ class TestConfig:
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SECRET_KEY = 'test_secret_key'
+    SECRET_KEY = 'test_secret_key_1234567890123456'
     AES_SECRET_KEY = '12345678901234567890123456789012'
     UPLOAD_FOLDER = os.path.join(tempfile.gettempdir(), 'uploads')
     ENCRYPTED_FOLDER = os.path.join(tempfile.gettempdir(), 'encrypted')

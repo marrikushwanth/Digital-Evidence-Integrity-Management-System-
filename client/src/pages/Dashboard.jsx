@@ -8,7 +8,7 @@ import { useApp } from '../context/AppContext';
 import { chartDataArea, mockThreatFeed } from '../data/mockData';
 
 export default function Dashboard() {
-  const { cases, evidence, auditLogs, users } = useApp();
+  const { cases, evidence, auditLogs, users, systemMetrics, hasRole } = useApp();
   
   // Real-time ticker
   const [time, setTime] = useState(new Date());
@@ -57,12 +57,59 @@ export default function Dashboard() {
           <div className="text-[10px] font-mono-tabular text-soc-red">Immediate attention required</div>
         </SocCard>
 
-        <SocCard className="bg-gradient-to-br from-[#050b14] to-[#0a1122] flex flex-col justify-center items-center text-center relative overflow-hidden">
-          <div className="absolute inset-0 border-[3px] border-soc-cyan/10 rounded-lg pointer-events-none"></div>
-          <div className="text-[10px] font-mono-tabular text-soc-cyan uppercase tracking-widest mb-2 z-10">System Time (UTC)</div>
-          <div className="text-2xl font-mono-tabular text-soc-cyan font-bold tracking-widest z-10">
-            {time.toISOString().substr(11, 8)}
+        <SocCard className="bg-gradient-to-br from-[#050b14] to-[#0a1122]">
+          <div className="flex justify-between items-start mb-2">
+            <div className="text-[10px] font-mono-tabular text-soc-cyan uppercase tracking-widest">Active Sessions</div>
+            <Network className="w-4 h-4 text-soc-cyan" />
           </div>
+          <div className="text-3xl font-mono-tabular text-soc-text font-bold mb-1">
+            {systemMetrics ? systemMetrics.activeSessions : 0}
+          </div>
+          <div className="text-[10px] font-mono-tabular text-soc-cyan">Real-time active users</div>
+        </SocCard>
+        
+        <SocCard className="bg-gradient-to-br from-[#050b14] to-[#0a1122]">
+          <div className="flex justify-between items-start mb-2">
+            <div className="text-[10px] font-mono-tabular text-soc-muted uppercase tracking-widest">Total Users (MFA)</div>
+            <Activity className="w-4 h-4 text-soc-cyan" />
+          </div>
+          <div className="text-3xl font-mono-tabular text-soc-text font-bold mb-1">
+            {systemMetrics ? `${systemMetrics.totalUsers} (${systemMetrics.mfaEnabledUsers})` : 0}
+          </div>
+          <div className="text-[10px] font-mono-tabular text-soc-cyan">Registered Users (MFA enabled)</div>
+        </SocCard>
+
+        <SocCard className="bg-gradient-to-br from-[#050b14] to-[#0a1122]">
+          <div className="flex justify-between items-start mb-2">
+            <div className="text-[10px] font-mono-tabular text-soc-muted uppercase tracking-widest">Failed Logins</div>
+            <AlertTriangle className="w-4 h-4 text-amber-500" />
+          </div>
+          <div className="text-3xl font-mono-tabular text-soc-text font-bold mb-1">
+            {systemMetrics ? systemMetrics.failedLogins : 0}
+          </div>
+          <div className="text-[10px] font-mono-tabular text-amber-500">Failed authentication attempts</div>
+        </SocCard>
+
+        <SocCard highlight className="bg-gradient-to-br from-[#1a0505] to-[#0a1122]">
+          <div className="flex justify-between items-start mb-2">
+            <div className="text-[10px] font-mono-tabular text-soc-red uppercase tracking-widest font-bold">Locked Accounts</div>
+            <ShieldAlert className="w-4 h-4 text-soc-red" />
+          </div>
+          <div className="text-3xl font-mono-tabular text-soc-red font-bold mb-1">
+            {systemMetrics ? systemMetrics.lockedAccounts : 0}
+          </div>
+          <div className="text-[10px] font-mono-tabular text-soc-red">Require admin unlock</div>
+        </SocCard>
+
+        <SocCard className="bg-gradient-to-br from-[#050b14] to-[#0a1122]">
+          <div className="flex justify-between items-start mb-2">
+            <div className="text-[10px] font-mono-tabular text-soc-muted uppercase tracking-widest">API Requests</div>
+            <Server className="w-4 h-4 text-soc-cyan" />
+          </div>
+          <div className="text-3xl font-mono-tabular text-soc-text font-bold mb-1">
+            {systemMetrics ? systemMetrics.requestCount : 0}
+          </div>
+          <div className="text-[10px] font-mono-tabular text-soc-cyan">Avg: {systemMetrics ? systemMetrics.avgResponseTimeMs : 0}ms</div>
         </SocCard>
       </div>
 

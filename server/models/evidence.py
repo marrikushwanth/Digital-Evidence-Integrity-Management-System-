@@ -1,5 +1,5 @@
 from .db import db
-from datetime import datetime
+from datetime import datetime, timezone
 from .user import generate_uuid
 
 class Evidence(db.Model):
@@ -18,6 +18,6 @@ class Evidence(db.Model):
     
     case_id = db.Column(db.String(36), db.ForeignKey('cases.id'), nullable=False)
     uploaded_by = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
-    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    uploaded_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     
     chain_of_custody = db.relationship('ChainOfCustody', backref='evidence_ref', lazy=True, cascade='all, delete-orphan')

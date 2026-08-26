@@ -11,6 +11,7 @@ from utils.notifier import send_security_notification
 def get_users(request):
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('limit', 50, type=int)
+    per_page = min(max(1, per_page), 100)
     search = request.args.get('search', '')
     status = request.args.get('status', '')
     role = request.args.get('role', '')
@@ -103,7 +104,7 @@ def create_user(request):
     return success_response('User created successfully', status_code=201)
 
 def get_user(user_id):
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if not user:
         return error_response('User not found', status_code=404)
         
@@ -124,7 +125,7 @@ def update_user(user_id, request):
     if not request.is_json:
         return error_response('Request must be JSON', status_code=415)
         
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if not user:
         return error_response('User not found', status_code=404)
         
@@ -146,7 +147,7 @@ def admin_reset_password(user_id, request):
     if not request.is_json:
         return error_response('Request must be JSON', status_code=415)
         
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if not user:
         return error_response('User not found', status_code=404)
         
@@ -161,7 +162,7 @@ def admin_reset_password(user_id, request):
     return success_response('Password reset successfully')
 
 def approve_user(user_id):
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if not user:
         return error_response('User not found', status_code=404)
         
@@ -172,7 +173,7 @@ def approve_user(user_id):
     return success_response('User approved')
 
 def reject_user(user_id):
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if not user:
         return error_response('User not found', status_code=404)
         
@@ -190,7 +191,7 @@ def assign_role(user_id, request):
     if 'role' not in data:
         return error_response('Missing role', status_code=422)
         
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if not user:
         return error_response('User not found', status_code=404)
         
@@ -212,7 +213,7 @@ def change_status(user_id, request):
     if 'status' not in data:
         return error_response('Missing status', status_code=422)
         
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if not user:
         return error_response('User not found', status_code=404)
         
@@ -231,7 +232,7 @@ def change_status(user_id, request):
     return success_response('User status updated')
 
 def delete_user(user_id):
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if not user:
         return error_response('User not found', status_code=404)
         
@@ -242,7 +243,7 @@ def delete_user(user_id):
     return success_response('User deleted successfully')
     
 def unlock_account(user_id):
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if not user:
         return error_response('User not found', status_code=404)
         

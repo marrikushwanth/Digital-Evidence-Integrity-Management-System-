@@ -1,4 +1,4 @@
-from flask import jsonify
+from flask import jsonify, g
 
 def success_response(message="Success", data=None, status_code=200):
     return jsonify({
@@ -9,9 +9,12 @@ def success_response(message="Success", data=None, status_code=200):
     }), status_code
 
 def error_response(message="Error", errors=None, status_code=400):
-    return jsonify({
+    response_body = {
         "success": False,
         "message": message,
         "data": None,
         "errors": errors
-    }), status_code
+    }
+    if hasattr(g, 'request_id'):
+        response_body['request_id'] = g.request_id
+    return jsonify(response_body), status_code

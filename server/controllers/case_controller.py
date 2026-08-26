@@ -9,6 +9,7 @@ from utils.logger import log_audit, log_chain_of_custody
 def get_cases(request):
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('limit', 50, type=int)
+    per_page = min(max(1, per_page), 100)
     search = request.args.get('search', '')
     status = request.args.get('status', '')
     date_from = request.args.get('date_from', '')
@@ -99,7 +100,7 @@ def create_case(request):
     }, status_code=201)
 
 def get_case(case_id):
-    case = Case.query.get(case_id)
+    case = db.session.get(Case, case_id)
     if not case:
         return error_response('Case not found', status_code=404)
         
@@ -117,7 +118,7 @@ def update_case(case_id, request):
     if not request.is_json:
         return error_response('Request must be JSON', status_code=415)
         
-    case = Case.query.get(case_id)
+    case = db.session.get(Case, case_id)
     if not case:
         return error_response('Case not found', status_code=404)
         
@@ -136,7 +137,7 @@ def change_case_status(case_id, request):
     if not request.is_json:
         return error_response('Request must be JSON', status_code=415)
         
-    case = Case.query.get(case_id)
+    case = db.session.get(Case, case_id)
     if not case:
         return error_response('Case not found', status_code=404)
         
@@ -156,7 +157,7 @@ def change_case_status(case_id, request):
     return success_response('Case status updated')
 
 def delete_case(case_id):
-    case = Case.query.get(case_id)
+    case = db.session.get(Case, case_id)
     if not case:
         return error_response('Case not found', status_code=404)
         

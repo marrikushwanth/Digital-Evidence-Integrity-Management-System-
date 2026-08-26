@@ -10,7 +10,7 @@ from utils.response import success_response, error_response
 from utils.logger import log_audit, log_chain_of_custody
 
 def generate_report(case_id):
-    case = Case.query.get(case_id)
+    case = db.session.get(Case, case_id)
     if not case:
         return error_response('Case not found', status_code=404)
         
@@ -75,7 +75,7 @@ def generate_report(case_id):
         return error_response('Failed to generate report', status_code=500)
 
 def download_report(report_id):
-    report = Report.query.get(report_id)
+    report = db.session.get(Report, report_id)
     if not report:
         return error_response('Report not found', status_code=404)
         

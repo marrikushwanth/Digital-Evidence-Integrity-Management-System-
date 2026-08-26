@@ -1,11 +1,46 @@
 from models.db import db
 from models.log import AuditLog, ChainOfCustody
 from flask import request, g
+import logging
+import json
+
+# Configure structured logging
+app_logger = logging.getLogger('deims_app')
+app_logger.setLevel(logging.INFO)
+if not app_logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    app_logger.addHandler(handler)
+
+def get_request_id():
+    return getattr(g, 'request_id', 'NO-REQUEST-ID')
+
+def get_username():
+    return getattr(g.user, 'username', 'SYSTEM') if hasattr(g, 'user') else 'SYSTEM'
+
+def structured_log(level, action, details):
+    log_data = {
+        'request_id': get_request_id(),
+        'user': get_username(),
+        'action': action,
+        'details': details,
+        'ip': request.remote_addr if request else '127.0.0.1'
+    }
+    if level == 'info':
+        app_logger.info(json.dumps(log_data))
+    elif level == 'error':
+        app_logger.error(json.dumps(log_data))
+    elif level == 'warning':
+        app_logger.warning(json.dumps(log_data))
 
 def log_audit(action, details, status="SUCCESS"):
     try:
-        username = getattr(g.user, 'username', 'SYSTEM') if hasattr(g, 'user') else 'SYSTEM'
+        username = get_username()
         role = g.user.role_ref.name if hasattr(g, 'user') and g.user.role_ref else 'System'
+        
+        # Log via structured logging too
+        structured_log('info', action, f"{status} - {details}")
         
         # Get basic request info
         ip_address = request.remote_addr if request else '127.0.0.1'

@@ -1,8 +1,9 @@
 import jwt
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from functools import wraps
 from flask import request, current_app, g
+from models.db import db
 from models.user import User, Role
 from models.auth import ActiveSession
 from utils.response import error_response
@@ -13,16 +14,16 @@ def generate_tokens(user_id, session_id=None):
     jti = session_id if session_id else str(uuid.uuid4())
     
     access_payload = {
-        'exp': datetime.utcnow() + timedelta(minutes=15),
-        'iat': datetime.utcnow(),
+        'exp': datetime.now(timezone.utc) + timedelta(minutes=15),
+        'iat': datetime.now(timezone.utc),
         'sub': user_id,
         'type': 'access',
         'jti': jti
     }
     
     refresh_payload = {
-        'exp': datetime.utcnow() + timedelta(days=7),
-        'iat': datetime.utcnow(),
+        'exp': datetime.now(timezone.utc) + timedelta(days=7),
+        'iat': datetime.now(timezone.utc),
         'sub': user_id,
         'type': 'refresh',
         'jti': jti
@@ -62,7 +63,7 @@ def jwt_required(f):
             if payload.get('type') != 'access':
                 return error_response('Invalid token type', status_code=401)
                 
-            current_user = User.query.get(payload['sub'])
+            current_user = db.session.get(User, payload['sub'])
             if not current_user:
                 return error_response('User not found', status_code=401)
             
@@ -99,7 +100,7 @@ def jwt_refresh_required(f):
             if payload.get('type') != 'refresh':
                 return error_response('Invalid token type', status_code=401)
                 
-            current_user = User.query.get(payload['sub'])
+            current_user = db.session.get(User, payload['sub'])
             if not current_user:
                 return error_response('User not found', status_code=401)
                 

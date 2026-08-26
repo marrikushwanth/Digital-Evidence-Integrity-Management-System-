@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 def send_security_notification(user, event_type, details):
     """
@@ -14,7 +14,7 @@ def send_security_notification(user, event_type, details):
     sensitive_keys = ['password', 'secret', 'token', 'code', 'jwt', 'hash', 'key']
     safe_details = {k: v for k, v in details.items() if not any(s in k.lower() for s in sensitive_keys)}
     
-    timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
+    timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
     
     message = f"""
 ===================================================
@@ -46,5 +46,6 @@ If you did not authorize this action, please contact your Super Admin immediatel
     try:
         with open(os.path.join(log_dir, 'notifications.log'), 'a') as f:
             f.write(message + '\n')
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.getLogger('deims_app').warning(f"Failed to send email: {e}")

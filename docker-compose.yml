@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-deims_secure_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-DEIMS}
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      - db
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY}
+      - AES_SECRET_KEY=${AES_SECRET_KEY}
+      - MYSQL_HOST=db
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-deims_secure_password}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-DEIMS}
+      - BLOCKCHAIN_RPC_URL=${BLOCKCHAIN_RPC_URL:-http://host.docker.internal:8545}
+      - BLOCKCHAIN_CONTRACT_ADDRESS=${BLOCKCHAIN_CONTRACT_ADDRESS}
+      - BLOCKCHAIN_PRIVATE_KEY=${BLOCKCHAIN_PRIVATE_KEY}
+      - ALLOWED_ORIGINS=http://localhost,http://localhost:80
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./server/uploads:/app/uploads
+      - ./server/encrypted:/app/encrypted
+      - ./server/reports:/app/reports
+      - ./server/logs:/app/logs
+
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  db_data:

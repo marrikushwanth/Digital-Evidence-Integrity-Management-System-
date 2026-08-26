@@ -50,7 +50,7 @@ def upload_evidence(request):
     if not case_id:
         return error_response('Case ID is required', status_code=422)
         
-    case = Case.query.get(case_id)
+    case = db.session.get(Case, case_id)
     if not case:
         return error_response('Case not found', status_code=404)
         
@@ -115,14 +115,20 @@ def upload_evidence(request):
         }, status_code=201)
         
     except Exception as e:
+        current_app.logger.error(f"Evidence upload failed: {str(e)}")
         if os.path.exists(temp_path):
             os.remove(temp_path)
         return error_response('Failed to process upload', status_code=500)
 
-def get_all_evidence():
-    evidence_list = Evidence.query.all()
+def get_all_evidence(request):
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('limit', 50, type=int)
+    per_page = min(max(1, per_page), 100)
+    
+    pagination = Evidence.query.order_by(Evidence.uploaded_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    
     data = []
-    for ev in evidence_list:
+    for ev in pagination.items:
         data.append({
             'id': ev.id,
             'original_name': ev.original_name,
@@ -136,10 +142,16 @@ def get_all_evidence():
             'blockchain_status': ev.blockchain_status,
             'blockchain_tx_hash': ev.blockchain_tx_hash
         })
-    return success_response('Evidence retrieved', data)
+        
+    return success_response('Evidence retrieved', {
+        'items': data,
+        'total': pagination.total,
+        'page': pagination.page,
+        'pages': pagination.pages
+    })
 
 def get_evidence(evidence_id):
-    evidence = Evidence.query.get(evidence_id)
+    evidence = db.session.get(Evidence, evidence_id)
     if not evidence:
         return error_response('Evidence not found', status_code=404)
         
@@ -158,7 +170,7 @@ def get_evidence(evidence_id):
     })
 
 def download_evidence(evidence_id):
-    evidence = Evidence.query.get(evidence_id)
+    evidence = db.session.get(Evidence, evidence_id)
     if not evidence:
         return error_response('Evidence not found', status_code=404)
         
@@ -184,6 +196,7 @@ def download_evidence(evidence_id):
             
         return send_file(temp_decrypted_path, as_attachment=True, download_name=evidence.original_name)
     except Exception as e:
+        current_app.logger.error(f"Evidence download failed: {str(e)}")
         if os.path.exists(temp_decrypted_path):
             os.remove(temp_decrypted_path)
         return error_response('Failed to decrypt file', status_code=500)
@@ -198,7 +211,7 @@ def verify_evidence(request):
     if not evidence_id:
         return error_response('Evidence ID is required', status_code=422)
         
-    evidence = Evidence.query.get(evidence_id)
+    evidence = db.session.get(Evidence, evidence_id)
     if not evidence:
         return error_response('Evidence not found', status_code=404)
         
@@ -268,12 +281,13 @@ def verify_evidence(request):
             })
             
     except Exception as e:
+        current_app.logger.error(f"Evidence verification failed: {str(e)}")
         if os.path.exists(temp_path):
             os.remove(temp_path)
         return error_response('Verification failed', status_code=500)
 
 def delete_evidence(evidence_id):
-    evidence = Evidence.query.get(evidence_id)
+    evidence = db.session.get(Evidence, evidence_id)
     if not evidence:
         return error_response('Evidence not found', status_code=404)
         
@@ -292,6 +306,7 @@ def delete_evidence(evidence_id):
         
         return success_response('Evidence deleted successfully')
     except Exception as e:
+        current_app.logger.error(f"Evidence deletion failed: {str(e)}")
         return error_response('Failed to delete evidence', status_code=500)
 
 def get_blockchain_status():

@@ -12,10 +12,17 @@ from routes.case_routes import case_bp
 from routes.evidence_routes import evidence_bp
 from routes.report_routes import report_bp
 from routes.log_routes import log_bp
+from routes.health_routes import health_bp
+from routes.system_routes import system_bp
+from middleware.request_id import setup_request_id
+from middleware.metrics import setup_metrics
 
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+    
+    from config import validate_config
+    validate_config(app)
     
     # Restrict CORS to allowed origins in production (from config) or fallback to local
     allowed_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
@@ -23,6 +30,8 @@ def create_app(config_class=Config):
     
     db.init_app(app)
     limiter.init_app(app)
+    setup_request_id(app)
+    setup_metrics(app)
     
     # Ensure upload folders exist
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -36,6 +45,8 @@ def create_app(config_class=Config):
     app.register_blueprint(evidence_bp)
     app.register_blueprint(report_bp)
     app.register_blueprint(log_bp)
+    app.register_blueprint(health_bp)
+    app.register_blueprint(system_bp)
     
     # Security Headers Middleware
     @app.after_request
@@ -92,54 +103,55 @@ if __name__ == '__main__':
     with app.app_context():
         # Models must be imported before creating tables
         from models import user, case, evidence, log, report, auth
-        db.create_all()
-        
-        # Simple schema migration for Phase 4 column addition
-        try:
-            db.session.execute("ALTER TABLE users ADD COLUMN email_notifications_enabled BOOLEAN DEFAULT 1")
-            db.session.commit()
-            print("Added email_notifications_enabled column to users table.")
-        except Exception:
-            # Column likely already exists
-            db.session.rollback()
+        if os.environ.get('FLASK_ENV', 'development') == 'development':
+            db.create_all()
+            
+            # Simple schema migration for Phase 4 column addition
+            try:
+                db.session.execute("ALTER TABLE users ADD COLUMN email_notifications_enabled BOOLEAN DEFAULT 1")
+                db.session.commit()
+                print("Added email_notifications_enabled column to users table.")
+            except Exception:
+                # Column likely already exists
+                db.session.rollback()
 
-        print("Database tables created.")
-        
-        # Seed Super Admin and Roles if they don't exist
-        from models.user import Role, User
-        from models.auth import PasswordHistory
-        import bcrypt
-        
-        roles = ['Super Admin', 'Admin', 'Investigator', 'Auditor', 'Editor', 'Viewer']
-        for role_name in roles:
-            if not Role.query.filter_by(name=role_name).first():
-                db.session.add(Role(name=role_name))
-        
-        db.session.commit()
-        
-        super_admin_role = Role.query.filter_by(name='Super Admin').first()
-        super_admin = User.query.filter_by(username='kushwanth').first()
-        if not super_admin:
-            import os
-            # Read from env or use compliant fallback
-            sa_password = os.environ.get('SUPER_ADMIN_PASSWORD', 'Kushwanth123!')
-            hashed_pw = bcrypt.hashpw(sa_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-            super_admin = User(
-                username='kushwanth',
-                email='kushwanth@deims.local',
-                password_hash=hashed_pw,
-                full_name='Super Admin Kushwanth',
-                role_id=super_admin_role.id,
-                status='Active'
-            )
-            db.session.add(super_admin)
+            print("Database tables created.")
+            
+            # Seed Super Admin and Roles if they don't exist
+            from models.user import Role, User
+            from models.auth import PasswordHistory
+            import bcrypt
+            
+            roles = ['Super Admin', 'Admin', 'Investigator', 'Auditor', 'Editor', 'Viewer']
+            for role_name in roles:
+                if not Role.query.filter_by(name=role_name).first():
+                    db.session.add(Role(name=role_name))
+            
             db.session.commit()
             
-            # Record initial password
-            hist = PasswordHistory(user_id=super_admin.id, password_hash=hashed_pw)
-            db.session.add(hist)
-            db.session.commit()
+            super_admin_role = Role.query.filter_by(name='Super Admin').first()
+            super_admin = User.query.filter_by(username='kushwanth').first()
+            if not super_admin:
+                # Read from env or use compliant fallback
+                sa_password = os.environ.get('SUPER_ADMIN_PASSWORD', 'Kushwanth123!')
+                hashed_pw = bcrypt.hashpw(sa_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                super_admin = User(
+                    username='kushwanth',
+                    email='kushwanth@deims.local',
+                    password_hash=hashed_pw,
+                    full_name='Super Admin Kushwanth',
+                    role_id=super_admin_role.id,
+                    status='Active'
+                )
+                db.session.add(super_admin)
+                db.session.commit()
+                
+                # Record initial password
+                hist = PasswordHistory(user_id=super_admin.id, password_hash=hashed_pw)
+                db.session.add(hist)
+                db.session.commit()
+                
+                print("Super admin user seeded.")
             
-            print("Super admin user seeded.")
-            
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    debug_mode = os.environ.get('FLASK_ENV') == 'development'
+    app.run(host='0.0.0.0', port=5000, debug=debug_mode)

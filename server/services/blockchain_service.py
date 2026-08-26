@@ -94,7 +94,13 @@ class BlockchainService:
     def is_connected(self):
         if not self.w3:
             self.initialize()
-        return self.w3.is_connected() if self.w3 else False
+        if not self.w3:
+            return False
+        try:
+            # Test connection cleanly with timeout to prevent hanging health checks
+            return self.w3.is_connected()
+        except Exception:
+            return False
 
     def register_evidence(self, evidence_id, case_id, file_hash, submitter_id):
         if not self.is_connected():
@@ -190,3 +196,6 @@ class BlockchainService:
             return {"status": "FAILED", "error": str(e)}
 
 blockchain_service = BlockchainService()
+
+def verify_blockchain_connection():
+    return blockchain_service.is_connected()

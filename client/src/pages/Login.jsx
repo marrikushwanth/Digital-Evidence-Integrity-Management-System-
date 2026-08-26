@@ -110,7 +110,6 @@ export default function Login() {
               </div>
             )}
 
-            {!forgotPwd ? (
               <>
                 <div className="space-y-2">
                   <label className="text-[10px] font-mono-tabular text-soc-muted uppercase tracking-wider block">Operator ID / Username</label>
@@ -174,7 +173,6 @@ export default function Login() {
                   Initiate Connection
                 </button>
               </>
-            
             <div className="text-center mt-6">
               <p className="text-xs text-soc-muted">
                 Don't have an access node? <Link to="/register" className="text-soc-cyan hover:underline">Request clearance</Link>

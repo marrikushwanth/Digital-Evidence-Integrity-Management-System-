@@ -26,6 +26,7 @@ export const AppProvider = ({ children }) => {
   const [reports, setReports] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [blockchainStatus, setBlockchainStatus] = useState({ connected: false, status: 'UNKNOWN' });
+  const [systemMetrics, setSystemMetrics] = useState(null);
 
   let isRefreshing = false;
   let refreshSubscribers = [];
@@ -126,6 +127,11 @@ export const AppProvider = ({ children }) => {
       if (uRes.data && uRes.data.success) setUsers(uRes.data.data);
       const aRes = await apiFetch('/logs/audit');
       if (aRes.data && aRes.data.success) setAuditLogs(aRes.data.data);
+      
+      if (hasRole(['Super Admin', 'Admin'])) {
+          const mRes = await apiFetch('/system/metrics');
+          if (mRes.data && mRes.data.success) setSystemMetrics(mRes.data.data);
+      }
     }
     
     const cRes = await apiFetch('/cases/');
@@ -342,7 +348,8 @@ export const AppProvider = ({ children }) => {
       auditLogs, addAuditLog,
       reports, generateReport,
       notifications, setNotifications,
-      blockchainStatus, fetchBlockchainStatus
+      blockchainStatus, fetchBlockchainStatus,
+      systemMetrics
     }}>
       {children}
     </AppContext.Provider>

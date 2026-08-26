@@ -1,5 +1,5 @@
 from .db import db
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 def generate_uuid():
@@ -26,14 +26,14 @@ class User(db.Model):
     phone = db.Column(db.String(50))
     role_id = db.Column(db.Integer, db.ForeignKey('roles.id'), nullable=False)
     status = db.Column(db.String(50), default='Pending Approval') # 'Pending Approval', 'Active', 'Suspended'
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     
     # Phase 4 Additions
     mfa_enabled = db.Column(db.Boolean, default=False)
     mfa_secret = db.Column(db.String(255), nullable=True) # Encrypted
     failed_login_attempts = db.Column(db.Integer, default=0)
     locked_until = db.Column(db.DateTime, nullable=True)
-    password_changed_at = db.Column(db.DateTime, default=datetime.utcnow)
+    password_changed_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     email_notifications_enabled = db.Column(db.Boolean, default=True)
     
     cases_created = db.relationship('Case', backref='creator', lazy=True)
