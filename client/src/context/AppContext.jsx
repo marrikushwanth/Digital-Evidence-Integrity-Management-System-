@@ -124,9 +124,15 @@ export const AppProvider = ({ children }) => {
   const fetchData = async () => {
     if (hasRole(['Super Admin', 'Admin', 'Auditor'])) {
       const uRes = await apiFetch('/users/');
-      if (uRes.data && uRes.data.success) setUsers(uRes.data.data);
+      if (uRes.data && uRes.data.success) {
+        const userData = Array.isArray(uRes.data.data) ? uRes.data.data : uRes.data.data.items;
+        setUsers(userData || []);
+      }
       const aRes = await apiFetch('/logs/audit');
-      if (aRes.data && aRes.data.success) setAuditLogs(aRes.data.data);
+      if (aRes.data && aRes.data.success) {
+        const auditData = Array.isArray(aRes.data.data) ? aRes.data.data : aRes.data.data.items;
+        setAuditLogs(auditData || []);
+      }
       
       if (hasRole(['Super Admin', 'Admin'])) {
           const mRes = await apiFetch('/system/metrics');
@@ -137,7 +143,7 @@ export const AppProvider = ({ children }) => {
     const cRes = await apiFetch('/cases/');
     if (cRes.data && cRes.data.success) {
       const caseData = Array.isArray(cRes.data.data) ? cRes.data.data : cRes.data.data.items;
-      const mappedCases = caseData.map(c => ({
+      const mappedCases = (caseData || []).map(c => ({
         ...c,
         createdDate: c.created_at
       }));
@@ -146,7 +152,8 @@ export const AppProvider = ({ children }) => {
     
     const eRes = await apiFetch('/evidence/');
     if (eRes.data && eRes.data.success) {
-      const mappedEvidence = eRes.data.data.map(e => ({
+      const eviData = Array.isArray(eRes.data.data) ? eRes.data.data : eRes.data.data.items;
+      const mappedEvidence = (eviData || []).map(e => ({
         ...e,
         fileName: e.original_name,
         fileSize: e.file_size,
@@ -163,10 +170,16 @@ export const AppProvider = ({ children }) => {
     }
     
     const lRes = await apiFetch('/logs/chain-of-custody');
-    if (lRes.data && lRes.data.success) setCustodyTimeline(lRes.data.data);
+    if (lRes.data && lRes.data.success) {
+      const custodyData = Array.isArray(lRes.data.data) ? lRes.data.data : lRes.data.data.items;
+      setCustodyTimeline(custodyData || []);
+    }
     
     const rRes = await apiFetch('/reports/');
-    if (rRes.data && rRes.data.success) setReports(rRes.data.data);
+    if (rRes.data && rRes.data.success) {
+      const reportData = Array.isArray(rRes.data.data) ? rRes.data.data : rRes.data.data.items;
+      setReports(reportData || []);
+    }
   };
 
   const loginUser = async (username, password, rememberMe) => {
