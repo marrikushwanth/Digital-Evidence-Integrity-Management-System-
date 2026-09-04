@@ -2575,3 +2575,413 @@ Details:
 If you did not authorize this action, please contact your Super Admin immediately.
 ===================================================
 
+
+===================================================
+[SECURITY NOTIFICATION]
+To: admin@test.local
+Time: 2026-09-04 11:58:13 UTC
+Event: New Device/IP Login
+
+Hello Admin Test,
+
+A security event has been detected on your DEIMS account.
+
+Details:
+- ip_address: 127.0.0.1
+- device: None
+
+If you did not authorize this action, please contact your Super Admin immediately.
+===================================================
+
+
+===================================================
+[SECURITY NOTIFICATION]
+To: admin@test.local
+Time: 2026-09-04 11:58:14 UTC
+Event: New Device/IP Login
+
+Hello Admin Test,
+
+A security event has been detected on your DEIMS account.
+
+Details:
+- ip_address: 127.0.0.1
+- device: None
+
+If you did not authorize this action, please contact your Super Admin immediately.
+===================================================
+
+
+===================================================
+[SECURITY NOTIFICATION]
+To: admin@test.local
+Time: 2026-09-04 11:58:15 UTC
+Event: New Device/IP Login
+
+Hello Admin Test,
+
+A security event has been detected on your DEIMS account.
+
+Details:
+- ip_address: 127.0.0.1
+- device: None
+
+If you did not authorize this action, please contact your Super Admin immediately.
+===================================================
+
+
+===================================================
+[SECURITY NOTIFICATION]
+To: admin@test.local
+Time: 2026-09-04 11:58:15 UTC
+Event: New Device/IP Login
+
+Hello Admin Test,
+
+A security event has been detected on your DEIMS account.
+
+Details:
+- ip_address: 127.0.0.1
+- device: None
+
+If you did not authorize this action, please contact your Super Admin immediately.
+===================================================
+
+
+===================================================
+[SECURITY NOTIFICATION]
+To: admin@test.local
+Time: 2026-09-04 11:58:16 UTC
+Event: New Device/IP Login
+
+Hello Admin Test,
+
+A security event has been detected on your DEIMS account.
+
+Details:
+- ip_address: 127.0.0.1
+- device: None
+
+If you did not authorize this action, please contact your Super Admin immediately.
+===================================================
+
+
+===================================================
+[SECURITY NOTIFICATION]
+To: admin@test.local
+Time: 2026-09-04 11:58:16 UTC
+Event: New Device/IP Login
+
+Hello Admin Test,
+
+A security event has been detected on your DEIMS account.
+
+Details:
+- ip_address: 127.0.0.1
+- device: None
+
+If you did not authorize this action, please contact your Super Admin immediately.
+===================================================
+
+
+===================================================
+[SECURITY NOTIFICATION]
+To: admin@test.local
+Time: 2026-09-04 11:58:17 UTC
+Event: New Device/IP Login
+
+Hello Admin Test,
+
+A security event has been detected on your DEIMS account.
+
+Details:
+- ip_address: 127.0.0.1
+- device: None
+
+If you did not authorize this action, please contact your Super Admin immediately.
+===================================================
+
+
+===================================================
+[SECURITY NOTIFICATION]
+To: admin@test.local
+Time: 2026-09-04 11:58:17 UTC
+Event: MFA Enabled
+
+Hello Admin Test,
+
+A security event has been detected on your DEIMS account.
+
+Details:
+- status: Success
+
+If you did not authorize this action, please contact your Super Admin immediately.
+===================================================
+
+
+===================================================
+[SECURITY NOTIFICATION]
+To: admin@test.local
+Time: 2026-09-04 11:58:18 UTC
+Event: Account Locked
+
+Hello Admin Test,
+
+A security event has been detected on your DEIMS account.
+
+Details:
+- reason: Too many failed login attempts
+- duration_minutes: 15
+
+If you did not authorize this action, please contact your Super Admin immediately.
+===================================================
+
+
+===================================================
+[SECURITY NOTIFICATION]
+To: admin@test.local
+Time: 2026-09-04 11:58:18 UTC
+Event: New Device/IP Login
+
+Hello Admin Test,
+
+A security event has been detected on your DEIMS account.
+
+Details:
+- ip_address: 127.0.0.1
+- device: None
+
+If you did not authorize this action, please contact your Super Admin immediately.
+===================================================
+
+
+===================================================
+[SECURITY NOTIFICATION]
+To: lockout@deims.local
+Time: 2026-09-04 11:58:19 UTC
+Event: Account Unlocked
+
+Hello Lockout Test,
+
+A security event has been detected on your DEIMS account.
+
+Details:
+- unlocked_by: admin_test
+
+If you did not authorize this action, please contact your Super Admin immediately.
+===================================================
+
+
+===================================================
+[SECURITY NOTIFICATION]
+To: admin@test.local
+Time: 2026-09-04 11:58:20 UTC
+Event: Password Reset Requested
+
+Hello Admin Test,
+
+A security event has been detected on your DEIMS account.
+
+Details:
+- reset_link: http://localhost:5173/reset-password?token=EEAri0rLeq13NSQxa160Xw-VRHFNEaGZaAU3UA2yoeM
+- expires_in: 15 minutes
+
+If you did not authorize this action, please contact your Super Admin immediately.
+===================================================
+
+
+===================================================
+[SECURITY NOTIFICATION]
+To: admin@test.local
+Time: 2026-09-04 11:58:20 UTC
+Event: New Device/IP Login
+
+Hello Admin Test,
+
+A security event has been detected on your DEIMS account.
+
+Details:
+- ip_address: 127.0.0.1
+- device: None
+
+If you did not authorize this action, please contact your Super Admin immediately.
+===================================================
+
+
+===================================================
+[SECURITY NOTIFICATION]
+To: admin@test.local
+Time: 2026-09-04 11:58:20 UTC
+Event: MFA Enabled
+
+Hello Admin Test,
+
+A security event has been detected on your DEIMS account.
+
+Details:
+- status: Success
+
+If you did not authorize this action, please contact your Super Admin immediately.
+===================================================
+
+
+===================================================
+[SECURITY NOTIFICATION]
+To: admin@test.local
+Time: 2026-09-04 11:58:20 UTC
+Event: Recovery Codes Regenerated
+
+Hello Admin Test,
+
+A security event has been detected on your DEIMS account.
+
+Details:
+- status: Success
+
+If you did not authorize this action, please contact your Super Admin immediately.
+===================================================
+
+
+===================================================
+[SECURITY NOTIFICATION]
+To: admin@test.local
+Time: 2026-09-04 11:58:21 UTC
+Event: New Device/IP Login
+
+Hello Admin Test,
+
+A security event has been detected on your DEIMS account.
+
+Details:
+- ip_address: 127.0.0.1
+- device: None
+
+If you did not authorize this action, please contact your Super Admin immediately.
+===================================================
+
+
+===================================================
+[SECURITY NOTIFICATION]
+To: a@t.com
+Time: 2026-09-04 11:58:22 UTC
+Event: Account Locked
+
+Hello A,
+
+A security event has been detected on your DEIMS account.
+
+Details:
+- reason: Too many failed login attempts
+- duration_minutes: 15
+
+If you did not authorize this action, please contact your Super Admin immediately.
+===================================================
+
+
+===================================================
+[SECURITY NOTIFICATION]
+To: a@t.com
+Time: 2026-09-04 11:58:23 UTC
+Event: New Device/IP Login
+
+Hello A,
+
+A security event has been detected on your DEIMS account.
+
+Details:
+- ip_address: 127.0.0.1
+- device: None
+
+If you did not authorize this action, please contact your Super Admin immediately.
+===================================================
+
+
+===================================================
+[SECURITY NOTIFICATION]
+To: a@t.com
+Time: 2026-09-04 11:58:23 UTC
+Event: New Device/IP Login
+
+Hello A,
+
+A security event has been detected on your DEIMS account.
+
+Details:
+- ip_address: 127.0.0.1
+- device: None
+
+If you did not authorize this action, please contact your Super Admin immediately.
+===================================================
+
+
+===================================================
+[SECURITY NOTIFICATION]
+To: a@t.com
+Time: 2026-09-04 11:58:24 UTC
+Event: New Device/IP Login
+
+Hello A,
+
+A security event has been detected on your DEIMS account.
+
+Details:
+- ip_address: 127.0.0.1
+- device: None
+
+If you did not authorize this action, please contact your Super Admin immediately.
+===================================================
+
+
+===================================================
+[SECURITY NOTIFICATION]
+To: u@t.com
+Time: 2026-09-04 11:58:24 UTC
+Event: New Device/IP Login
+
+Hello U,
+
+A security event has been detected on your DEIMS account.
+
+Details:
+- ip_address: 127.0.0.1
+- device: None
+
+If you did not authorize this action, please contact your Super Admin immediately.
+===================================================
+
+
+===================================================
+[SECURITY NOTIFICATION]
+To: kushwanth@deims.local
+Time: 2026-09-04 12:00:46 UTC
+Event: Account Locked
+
+Hello Super Admin Kushwanth,
+
+A security event has been detected on your DEIMS account.
+
+Details:
+- reason: Too many failed login attempts
+- duration_minutes: 15
+
+If you did not authorize this action, please contact your Super Admin immediately.
+===================================================
+
+
+===================================================
+[SECURITY NOTIFICATION]
+To: kushwanth@deims.local
+Time: 2026-09-04 12:09:30 UTC
+Event: New Device/IP Login
+
+Hello Super Admin Kushwanth,
+
+A security event has been detected on your DEIMS account.
+
+Details:
+- ip_address: 127.0.0.1
+- device: None
+
+If you did not authorize this action, please contact your Super Admin immediately.
+===================================================
+

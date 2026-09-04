@@ -133,7 +133,7 @@ if __name__ == '__main__':
             super_admin = User.query.filter_by(username='kushwanth').first()
             if not super_admin:
                 # Read from env or use compliant fallback
-                sa_password = os.environ.get('SUPER_ADMIN_PASSWORD', 'Kushwanth123!')
+                sa_password = os.environ.get('SUPER_ADMIN_PASSWORD', 'kushwanth')
                 hashed_pw = bcrypt.hashpw(sa_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                 super_admin = User(
                     username='kushwanth',
