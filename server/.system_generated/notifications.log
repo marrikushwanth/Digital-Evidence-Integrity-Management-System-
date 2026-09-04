@@ -2183,3 +2183,21 @@ Details:
 If you did not authorize this action, please contact your Super Admin immediately.
 ===================================================
 
+
+===================================================
+[SECURITY NOTIFICATION]
+To: kushwanth@deims.local
+Time: 2026-09-04 05:42:14 UTC
+Event: New Device/IP Login
+
+Hello Super Admin Kushwanth,
+
+A security event has been detected on your DEIMS account.
+
+Details:
+- ip_address: 127.0.0.1
+- device: None
+
+If you did not authorize this action, please contact your Super Admin immediately.
+===================================================
+
