@@ -2,7 +2,9 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const AppContext = createContext();
 
-const API_URL = 'http://localhost:5000/api';
+// Set VITE_API_URL in Vercel to the deployed Flask API URL, ending in /api.
+// For local development, the existing localhost API remains the fallback.
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/$/, '');
 
 export const AppProvider = ({ children }) => {
   const initSession = (key, fallback) => {
