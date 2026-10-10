@@ -1,5 +1,6 @@
 import os
 import re
+import io
 from flask import current_app, g, send_file, after_this_request
 from werkzeug.utils import secure_filename
 from models.db import db
@@ -64,7 +65,6 @@ def upload_evidence(request):
         # Check for duplicates across the entire system
         existing_evidence = Evidence.query.filter_by(file_hash=file_hash).first()
         if existing_evidence:
-            os.remove(temp_path)
             return error_response('Duplicate evidence. This exact file already exists in the system.', status_code=409)
             
         encrypted_filename = f"{file_hash}.enc"
@@ -72,7 +72,6 @@ def upload_evidence(request):
         
         CryptoService.encrypt_file(temp_path, encrypted_path)
         file_size = os.path.getsize(temp_path)
-        os.remove(temp_path)
         
         new_evidence = Evidence(
             file_name=encrypted_filename,
@@ -116,9 +115,13 @@ def upload_evidence(request):
         
     except Exception as e:
         current_app.logger.error(f"Evidence upload failed: {str(e)}")
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
         return error_response('Failed to process upload', status_code=500)
+    finally:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception as cleanup_err:
+                current_app.logger.error(f"Failed to remove temp evidence file during upload: {cleanup_err}")
 
 def get_all_evidence(request):
     page = request.args.get('page', 1, type=int)
@@ -178,27 +181,17 @@ def download_evidence(evidence_id):
     if not os.path.exists(encrypted_path):
         return error_response('Encrypted file not found on disk', status_code=404)
         
-    temp_decrypted_path = os.path.join(current_app.config['UPLOAD_FOLDER'], f"temp_dec_{evidence.original_name}")
-    
     try:
-        CryptoService.decrypt_file(encrypted_path, temp_decrypted_path)
+        decrypted_bytes = CryptoService.decrypt_file_to_memory(encrypted_path)
         
         log_audit('DOWNLOAD_EVIDENCE', f"Downloaded evidence {evidence.id}")
         log_chain_of_custody(evidence.id, evidence.case_id, "Evidence Downloaded")
         
-        @after_this_request
-        def remove_file(response):
-            try:
-                os.remove(temp_decrypted_path)
-            except Exception as error:
-                current_app.logger.error(f"Error removing temp file: {error}")
-            return response
-            
-        return send_file(temp_decrypted_path, as_attachment=True, download_name=evidence.original_name)
+        file_stream = io.BytesIO(decrypted_bytes)
+        
+        return send_file(file_stream, mimetype=evidence.mime_type, as_attachment=True, download_name=evidence.original_name)
     except Exception as e:
         current_app.logger.error(f"Evidence download failed: {str(e)}")
-        if os.path.exists(temp_decrypted_path):
-            os.remove(temp_decrypted_path)
         return error_response('Failed to decrypt file', status_code=500)
 
 def verify_evidence(request):
@@ -220,7 +213,6 @@ def verify_evidence(request):
     try:
         file.save(temp_path)
         uploaded_hash = HashService.generate_sha256(temp_path)
-        os.remove(temp_path)
         
         db_match = (uploaded_hash == evidence.file_hash)
         
@@ -282,9 +274,13 @@ def verify_evidence(request):
             
     except Exception as e:
         current_app.logger.error(f"Evidence verification failed: {str(e)}")
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
         return error_response('Verification failed', status_code=500)
+    finally:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception as cleanup_err:
+                current_app.logger.error(f"Failed to remove temp evidence file during verification: {cleanup_err}")
 
 def delete_evidence(evidence_id):
     evidence = db.session.get(Evidence, evidence_id)

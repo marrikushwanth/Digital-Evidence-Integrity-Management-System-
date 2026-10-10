@@ -54,7 +54,14 @@ export const AppProvider = ({ children }) => {
         ...options,
         headers,
       });
-      const data = await response.json();
+      let data;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        data = { success: false, message: text || `Server returned HTTP ${response.status}` };
+      }
       
       if (response.status === 401 && !isRetry && token) {
         if (!isRefreshing) {
@@ -99,9 +106,16 @@ export const AppProvider = ({ children }) => {
           });
         }
       }
+      
+      // If we got a JSON response but it's an error, make sure we extract the right message
+      if (!response.ok && data && !data.message) {
+        data.message = data.error || `HTTP ${response.status} Error`;
+      }
+      
       return { status: response.status, data };
     } catch (error) {
-      return { status: 500, data: { success: false, message: 'Network error' } };
+      console.error('Fetch error:', error);
+      return { status: 500, data: { success: false, message: 'Unable to connect to the DEIMS server.' } };
     }
   };
 
@@ -274,8 +288,16 @@ export const AppProvider = ({ children }) => {
 
   // Additional methods... (keep the rest mostly intact)
   const addUser = async (userData) => {
-    await apiFetch('/auth/register', { method: 'POST', body: JSON.stringify(userData) });
-    fetchData();
+    const payload = { ...userData, full_name: userData.fullName };
+    const res = await apiFetch('/users/', { method: 'POST', body: JSON.stringify(payload) });
+    if (res.status === 201 || (res.data && res.data.success)) {
+      fetchData();
+      return { success: true };
+    } else {
+      const errorMsg = res.data?.message || 'Failed to add user';
+      alert(errorMsg);
+      return { success: false, error: errorMsg };
+    }
   };
 
   const editUser = async (id, data) => fetchData();
@@ -347,6 +369,43 @@ export const AppProvider = ({ children }) => {
     fetchData();
   };
 
+  const downloadEvidence = async (id, fileName) => {
+    try {
+      const response = await fetch(`${API_URL}/evidence/${id}/download`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) {
+        if (response.status === 401) {
+          alert("Session expired. Please log in again.");
+        } else {
+          try {
+            const err = await response.json();
+            alert(err.message || "Failed to download evidence");
+          } catch (e) {
+            alert("Failed to download evidence");
+          }
+        }
+        return;
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+    } catch (e) {
+      console.error("Download error:", e);
+      alert("Error downloading file");
+    }
+  };
+
   const addAuditLog = (action, details, status = 'SUCCESS') => {};
 
   return (
@@ -356,7 +415,7 @@ export const AppProvider = ({ children }) => {
       user, setUser, isAuthenticated, loginUser, verifyMfa, logoutUser, registerUser, hasRole,
       addUser, editUser, deleteUser, updateUserStatus, assignRole, resetPassword, unlockAccount,
       cases, setCases, createCase, updateCase, deleteCase,
-      evidence, setEvidence, uploadEvidence, deleteEvidence, verifyEvidence,
+      evidence, setEvidence, uploadEvidence, deleteEvidence, verifyEvidence, downloadEvidence,
       custodyTimeline, setCustodyTimeline,
       auditLogs, addAuditLog,
       reports, generateReport,

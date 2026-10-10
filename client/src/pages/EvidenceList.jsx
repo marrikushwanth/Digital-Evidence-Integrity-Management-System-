@@ -24,7 +24,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 };
 
 export default function EvidenceList() {
-  const { evidence, hasRole, deleteEvidence, user } = useApp();
+  const { evidence, hasRole, deleteEvidence, downloadEvidence, user } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -45,8 +45,7 @@ export default function EvidenceList() {
   };
 
   const handleDownload = (ev) => {
-    // Mock download action
-    alert(`Initiating secure download protocol for artifact: ${ev.fileName}\nDecryption keys requested...`);
+    downloadEvidence(ev.id, ev.fileName);
   };
 
   const handleDelete = (ev) => {

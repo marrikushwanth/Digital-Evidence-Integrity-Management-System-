@@ -14,6 +14,8 @@ from routes.report_routes import report_bp
 from routes.log_routes import log_bp
 from routes.health_routes import health_bp
 from routes.system_routes import system_bp
+from routes.merkle_routes import merkle_bp
+from routes.security_routes import security_bp
 from middleware.request_id import setup_request_id
 from middleware.metrics import setup_metrics
 
@@ -47,6 +49,8 @@ def create_app(config_class=Config):
     app.register_blueprint(log_bp)
     app.register_blueprint(health_bp)
     app.register_blueprint(system_bp)
+    app.register_blueprint(merkle_bp)
+    app.register_blueprint(security_bp)
     
     # Security Headers Middleware
     @app.after_request
@@ -102,7 +106,7 @@ app = create_app()
 if __name__ == '__main__':
     with app.app_context():
         # Models must be imported before creating tables
-        from models import user, case, evidence, log, report, auth
+        from models import user, case, evidence, log, report, auth, merkle
         if os.environ.get('FLASK_ENV', 'development') == 'development':
             db.create_all()
             

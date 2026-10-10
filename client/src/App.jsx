@@ -22,6 +22,9 @@ import Reports from './pages/Reports';
 import UserManagement from './pages/UserManagement';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
+import MerkleBatches from './pages/MerkleBatches';
+import SecurityMonitoring from './pages/SecurityMonitoring';
+import LocationGate from './components/auth/LocationGate';
 
 // Role Guard Wrapper
 const RoleGuard = ({ children, allowedRoles }) => {
@@ -82,6 +85,12 @@ function AppRoutes() {
         {/* Reports: All roles */}
         <Route path="reports" element={<RoleGuard allowedRoles={['Super Admin', 'Admin', 'Investigator', 'Auditor', 'Editor', 'Viewer']}><Reports /></RoleGuard>} />
 
+        {/* Merkle Batches: Super Admin, Admin */}
+        <Route path="merkle-batches" element={<RoleGuard allowedRoles={['Super Admin', 'Admin', 'Investigator']}><MerkleBatches /></RoleGuard>} />
+
+        {/* Security Monitoring: Super Admin, Admin, Security */}
+        <Route path="security" element={<RoleGuard allowedRoles={['Super Admin', 'Admin', 'Security']}><SecurityMonitoring /></RoleGuard>} />
+
       </Route>
       
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -90,11 +99,17 @@ function AppRoutes() {
 }
 
 export default function App() {
+  const [gatePassed, setGatePassed] = React.useState(false);
+
   return (
     <AppProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      {!gatePassed ? (
+        <LocationGate onComplete={() => setGatePassed(true)} />
+      ) : (
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      )}
     </AppProvider>
   );
 }

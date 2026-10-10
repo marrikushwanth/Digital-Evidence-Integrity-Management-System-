@@ -10,7 +10,9 @@ import {
   FileBarChart, 
   Users, 
   Settings, 
-  User 
+  User,
+  Layers,
+  Shield
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -24,8 +26,10 @@ export default function LeftSidebar() {
     { label: 'Integrity Check', icon: <ShieldCheck />, path: '/verify', allowedRoles: ['Super Admin', 'Admin', 'Investigator'] },
     { label: 'Chain of Custody', icon: <GitCommit />, path: '/custody', allowedRoles: ['Super Admin', 'Admin', 'Investigator', 'Auditor'] },
     { label: 'System Audits', icon: <Terminal />, path: '/audit-logs', allowedRoles: ['Super Admin', 'Admin', 'Auditor'] },
+    { label: 'Merkle Batches', icon: <Layers />, path: '/merkle-batches', allowedRoles: ['Super Admin', 'Admin', 'Investigator'] },
     { label: 'Reports Gen', icon: <FileBarChart />, path: '/reports', allowedRoles: ['Super Admin', 'Admin', 'Investigator', 'Auditor', 'Editor', 'Viewer'] },
     { label: 'Access Control', icon: <Users />, path: '/users', allowedRoles: ['Super Admin', 'Admin'] },
+    { label: 'Security Monitor', icon: <Shield />, path: '/security', allowedRoles: ['Super Admin', 'Admin', 'Security'] },
     { label: 'Operator Profile', icon: <User />, path: '/profile', allowedRoles: ['Super Admin', 'Admin', 'Investigator', 'Auditor', 'Editor', 'Viewer'] },
     { label: 'Config', icon: <Settings />, path: '/settings', allowedRoles: ['Super Admin', 'Admin', 'Investigator', 'Auditor', 'Editor', 'Viewer'] }
   ];

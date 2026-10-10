@@ -16,6 +16,7 @@ from utils.validators import is_valid_email
 from utils.logger import log_audit
 from utils.notifier import send_security_notification
 from services.crypto_service import CryptoService
+from services.security_service import record_security_event
 
 MAX_LOGIN_ATTEMPTS = 5
 LOCKOUT_DURATION_MINUTES = 15
@@ -97,10 +98,12 @@ def login_user(request):
     if not user:
         # Don't reveal user existence
         log_audit('LOGIN_FAILED', f"Failed login attempt for {data.get('username')}", "FAILURE")
+        record_security_event('LOGIN_ATTEMPT', 'FAILURE', attempted_identifier=data.get('username'), failure_reason='Invalid credentials', req=request)
         return error_response('Invalid credentials', status_code=401)
 
     if user.locked_until and user.locked_until.replace(tzinfo=timezone.utc) > datetime.now(timezone.utc):
         log_audit('LOGIN_FAILED', f"Login attempt on locked account {user.username}", "FAILURE")
+        record_security_event('LOGIN_ATTEMPT', 'BLOCKED', user.id, user.username, 'Account temporarily locked', req=request)
         return error_response('Account temporarily locked. Try again later.', status_code=423)
         
     if not bcrypt.checkpw(data['password'].encode('utf-8'), user.password_hash.encode('utf-8')):
@@ -111,6 +114,7 @@ def login_user(request):
             send_security_notification(user, 'Account Locked', {'reason': 'Too many failed login attempts', 'duration_minutes': LOCKOUT_DURATION_MINUTES})
         db.session.commit()
         log_audit('LOGIN_FAILED', f"Failed login attempt for {user.username}", "FAILURE")
+        record_security_event('LOGIN_ATTEMPT', 'FAILURE', user.id, user.username, 'Invalid password', req=request)
         return error_response('Invalid credentials', status_code=401)
         
     user.failed_login_attempts = 0
@@ -160,6 +164,7 @@ def complete_login(user, request):
     # We spoof g.user here for log_audit because it may not be set in MFA flow yet
     g.user = user
     log_audit('LOGIN_SUCCESS', f"User {user.username} authenticated successfully.", "SUCCESS")
+    record_security_event('LOGIN_ATTEMPT', 'SUCCESS', user.id, user.username, req=request)
     
     return success_response('Login successful', {
         'token': access_token,
@@ -205,6 +210,7 @@ def verify_mfa_login(request):
         # Both failed
         g.user = user
         log_audit('MFA_FAILED', f"Failed MFA attempt for {user.username}", "FAILURE")
+        record_security_event('MFA_ATTEMPT', 'FAILURE', user.id, user.username, 'Invalid MFA code', req=request)
         return error_response('Invalid MFA code', status_code=401)
         
     except Exception as e:

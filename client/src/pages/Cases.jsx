@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Briefcase, Search, Plus, Filter, Trash2, Edit2, Lock, Unlock, XCircle } from 'lucide-react';
+import { Briefcase, Search, Plus, Filter, Trash2, Edit2, Lock, Unlock, XCircle, FileText, Loader } from 'lucide-react';
 import SocCard from '../components/ui/SocCard';
 import StatusBadge from '../components/ui/StatusBadge';
 import { useApp } from '../context/AppContext';
@@ -33,6 +33,59 @@ export default function Cases() {
   const [selectedCase, setSelectedCase] = useState(null);
   
   const [formData, setFormData] = useState({ title: '', investigator: activeUser?.username || '', priority: 'Medium' });
+  
+  const [generatingReport, setGeneratingReport] = useState(null);
+
+  const handleGenerateReport = async (c) => {
+    setGeneratingReport(c.id);
+    try {
+      const local = localStorage.getItem('soc_token');
+      const session = sessionStorage.getItem('soc_token');
+      let token = null;
+      if (local) token = JSON.parse(local);
+      else if (session) token = JSON.parse(session);
+      
+      if (!token) throw new Error("Authentication failed. Please log in again.");
+
+      const response = await fetch(`http://localhost:5000/api/reports/cases/${c.id}/pdf`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("Authentication failed. Please log in again.");
+        }
+        let errorMsg = 'Failed to generate report';
+        try {
+          const errData = await response.json();
+          if (errData.message) errorMsg = errData.message;
+        } catch(e) {}
+        throw new Error(errorMsg);
+      }
+      
+      const blob = await response.blob();
+      const safeTitle = c.title.replace(/[^a-zA-Z0-9]/g, '_');
+      const filename = `DEIMS_${safeTitle}_Forensic_Report.pdf`;
+      
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      
+      alert('Report generated successfully.');
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    } finally {
+      setGeneratingReport(null);
+    }
+  };
 
   // Filter cases
   let filteredCases = cases;
@@ -169,6 +222,15 @@ export default function Cases() {
                         </button>
                       </>
                     )}
+                    
+                    <button 
+                      onClick={() => handleGenerateReport(c)} 
+                      disabled={generatingReport === c.id}
+                      className="p-1.5 text-soc-muted hover:text-soc-purple hover:bg-soc-purple/10 rounded disabled:opacity-50" 
+                      title="Generate PDF Report"
+                    >
+                      {generatingReport === c.id ? <Loader className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                    </button>
 
                     {hasRole(['Super Admin', 'Admin']) && (
                       <button 

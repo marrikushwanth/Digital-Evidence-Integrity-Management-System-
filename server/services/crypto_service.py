@@ -59,6 +59,23 @@ class CryptoService:
             f_out.write(unpadder.finalize())
 
     @staticmethod
+    def decrypt_file_to_memory(input_path):
+        """Decrypts an AES-256-CBC encrypted file into a memory buffer (bytes)."""
+        key = CryptoService._get_key()
+        
+        with open(input_path, 'rb') as f_in:
+            iv = f_in.read(16)
+            cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+            decryptor = cipher.decryptor()
+            unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
+            
+            ciphertext = f_in.read()
+            decrypted_padded = decryptor.update(ciphertext) + decryptor.finalize()
+            data = unpadder.update(decrypted_padded) + unpadder.finalize()
+            
+        return data
+
+    @staticmethod
     def encrypt_data(data: str) -> bytes:
         """Encrypts a string using AES-256-CBC and returns bytes (IV + Ciphertext)."""
         key = CryptoService._get_key()

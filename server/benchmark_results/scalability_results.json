@@ -1,0 +1,110 @@
+[
+    {
+        "timestamp": "2026-10-07T05:37:07.825579+00:00",
+        "network": "http://127.0.0.1:8545",
+        "dataset_size": 10,
+        "individual": {
+            "tx_count": 10,
+            "total_gas": 3053660,
+            "total_time": 0.5545449999626726,
+            "avg_gas": 305366.0,
+            "avg_time": 0.05545449999626726
+        },
+        "merkle": {
+            "tx_count": 1,
+            "total_gas": 233740,
+            "tree_construction_time": 3.6999990697950125e-05,
+            "blockchain_time": 0.03301220003049821,
+            "total_time": 0.03304920002119616
+        },
+        "reductions": {
+            "gas_reduction_percent": 92.3455787481252,
+            "tx_reduction_percent": 90.0
+        },
+        "verifications": {
+            "on_chain_root_verified": true,
+            "proof_verified": true
+        }
+    },
+    {
+        "timestamp": "2026-10-07T05:37:09.315404+00:00",
+        "network": "http://127.0.0.1:8545",
+        "dataset_size": 25,
+        "individual": {
+            "tx_count": 25,
+            "total_gas": 7634330,
+            "total_time": 1.418744400027208,
+            "avg_gas": 305373.2,
+            "avg_time": 0.05674977600108832
+        },
+        "merkle": {
+            "tx_count": 1,
+            "total_gas": 233740,
+            "tree_construction_time": 0.00012389995390549302,
+            "blockchain_time": 0.043936200032476336,
+            "total_time": 0.04406009998638183
+        },
+        "reductions": {
+            "gas_reduction_percent": 96.93830368873235,
+            "tx_reduction_percent": 96.0
+        },
+        "verifications": {
+            "on_chain_root_verified": true,
+            "proof_verified": true
+        }
+    },
+    {
+        "timestamp": "2026-10-07T05:37:12.905519+00:00",
+        "network": "http://127.0.0.1:8545",
+        "dataset_size": 50,
+        "individual": {
+            "tx_count": 50,
+            "total_gas": 15268780,
+            "total_time": 3.5205228999839164,
+            "avg_gas": 305375.6,
+            "avg_time": 0.07041045799967832
+        },
+        "merkle": {
+            "tx_count": 1,
+            "total_gas": 233740,
+            "tree_construction_time": 0.00018969998927786946,
+            "blockchain_time": 0.042899199994280934,
+            "total_time": 0.043088899983558804
+        },
+        "reductions": {
+            "gas_reduction_percent": 98.46916387556833,
+            "tx_reduction_percent": 98.0
+        },
+        "verifications": {
+            "on_chain_root_verified": true,
+            "proof_verified": true
+        }
+    },
+    {
+        "timestamp": "2026-10-07T05:37:18.796286+00:00",
+        "network": "http://127.0.0.1:8545",
+        "dataset_size": 100,
+        "individual": {
+            "tx_count": 100,
+            "total_gas": 30537680,
+            "total_time": 5.856239799992181,
+            "avg_gas": 305376.8,
+            "avg_time": 0.058562397999921814
+        },
+        "merkle": {
+            "tx_count": 1,
+            "total_gas": 233740,
+            "tree_construction_time": 0.0001351999817416072,
+            "blockchain_time": 0.02085969998734072,
+            "total_time": 0.020994899969082326
+        },
+        "reductions": {
+            "gas_reduction_percent": 99.23458494554923,
+            "tx_reduction_percent": 99.0
+        },
+        "verifications": {
+            "on_chain_root_verified": true,
+            "proof_verified": true
+        }
+    }
+]

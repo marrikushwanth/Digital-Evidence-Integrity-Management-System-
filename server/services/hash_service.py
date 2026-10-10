@@ -16,6 +16,13 @@ class HashService:
             return None
 
     @staticmethod
+    def generate_sha256_bytes(data: bytes) -> str:
+        """Generates SHA-256 hash for a given byte sequence."""
+        sha256_hash = hashlib.sha256()
+        sha256_hash.update(data)
+        return sha256_hash.hexdigest()
+
+    @staticmethod
     def verify_sha256(file_path, expected_hash):
         """Verifies if the file's hash matches the expected hash."""
         actual_hash = HashService.generate_sha256(file_path)

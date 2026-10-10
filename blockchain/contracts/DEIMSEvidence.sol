@@ -20,12 +20,21 @@ contract DEIMSEvidence {
         uint256 timestamp;
     }
 
+    struct MerkleBatch {
+        bytes32 merkleRoot;
+        uint256 leafCount;
+        uint256 timestamp;
+        bool exists;
+    }
+
     mapping(string => Evidence) private evidences;
+    mapping(bytes32 => MerkleBatch) private merkleBatches;
     CustodyEvent[] private custodyEvents;
 
     event EvidenceRegistered(string indexed id, string caseId, string fileHash, uint256 timestamp);
     event EvidenceVerified(string indexed id, bool matchStatus, uint256 timestamp);
     event CustodyEventRecorded(string indexed evidenceId, string caseId, string action, uint256 timestamp);
+    event MerkleBatchRegistered(bytes32 indexed batchId, bytes32 merkleRoot, uint256 leafCount, uint256 timestamp);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner can perform this action");
@@ -100,5 +109,33 @@ contract DEIMSEvidence {
 
     function evidenceExists(string memory _id) public view returns (bool) {
         return evidences[_id].exists;
+    }
+
+    function registerMerkleRoot(
+        bytes32 _batchId,
+        bytes32 _merkleRoot,
+        uint256 _leafCount
+    ) public onlyOwner {
+        require(!merkleBatches[_batchId].exists, "Batch already registered");
+        require(_leafCount > 0, "Leaf count must be greater than 0");
+
+        merkleBatches[_batchId] = MerkleBatch({
+            merkleRoot: _merkleRoot,
+            leafCount: _leafCount,
+            timestamp: block.timestamp,
+            exists: true
+        });
+
+        emit MerkleBatchRegistered(_batchId, _merkleRoot, _leafCount, block.timestamp);
+    }
+
+    function getMerkleBatch(bytes32 _batchId) public view returns (
+        bytes32 merkleRoot,
+        uint256 leafCount,
+        uint256 timestamp,
+        bool exists
+    ) {
+        MerkleBatch memory batch = merkleBatches[_batchId];
+        return (batch.merkleRoot, batch.leafCount, batch.timestamp, batch.exists);
     }
 }

@@ -83,6 +83,11 @@ def create_user(request):
     if not role:
         return error_response('Invalid role', status_code=400)
         
+    from controllers.auth_controller import check_password_complexity
+    valid, msg = check_password_complexity(data['password'])
+    if not valid:
+        return error_response(msg, status_code=400)
+        
     hashed_password = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     
     new_user = User(
@@ -98,6 +103,11 @@ def create_user(request):
     )
     
     db.session.add(new_user)
+    db.session.commit()
+    
+    from models.auth import PasswordHistory
+    hist = PasswordHistory(user_id=new_user.id, password_hash=hashed_password)
+    db.session.add(hist)
     db.session.commit()
     
     log_audit('CREATE_USER', f"Admin created user {new_user.username}", "SUCCESS")

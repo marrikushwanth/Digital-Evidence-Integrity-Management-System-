@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, CheckCircle, XCircle, Shield, Trash2, Edit2, Key, Search, Filter, Plus, Power, PowerOff } from 'lucide-react';
+import { Users, CheckCircle, XCircle, Shield, Trash2, Edit2, Key, Search, Filter, Plus, Power, PowerOff, ShieldAlert, Activity, FileText } from 'lucide-react';
 import SocCard from '../components/ui/SocCard';
 import StatusBadge from '../components/ui/StatusBadge';
 import { useApp } from '../context/AppContext';
@@ -24,7 +24,26 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 };
 
 export default function UserManagement() {
-  const { users, addUser, editUser, deleteUser, updateUserStatus, assignRole, resetPassword, user: activeUser, hasRole } = useApp();
+  const { users, addUser, editUser, deleteUser, updateUserStatus, assignRole, resetPassword, user: activeUser, hasRole, apiFetch } = useApp();
+  
+  const [securityStats, setSecurityStats] = useState(null);
+  const [recentEvents, setRecentEvents] = useState([]);
+  
+  useEffect(() => {
+    const fetchSecurityData = async () => {
+      try {
+        const [statsRes, eventsRes] = await Promise.all([
+          apiFetch('/security/dashboard'),
+          apiFetch('/security/events')
+        ]);
+        setSecurityStats(statsRes.data.data);
+        setRecentEvents(eventsRes.data.data.slice(0, 5)); // Just take 5 for the mini table
+      } catch (e) {
+        console.error("Failed to load security data", e);
+      }
+    };
+    fetchSecurityData();
+  }, [apiFetch]);
   
   // States
   const [searchTerm, setSearchTerm] = useState('');
@@ -75,11 +94,13 @@ export default function UserManagement() {
     setIsEditModalOpen(false);
   };
 
-  const handleAddSubmit = (e) => {
+  const handleAddSubmit = async (e) => {
     e.preventDefault();
-    addUser({ ...formData, status: 'Active' });
-    setIsAddModalOpen(false);
-    setFormData({ fullName: '', username: '', email: '', role: 'Viewer', password: '' });
+    const result = await addUser({ ...formData, status: 'Active' });
+    if (result && result.success) {
+      setIsAddModalOpen(false);
+      setFormData({ fullName: '', username: '', email: '', role: 'Viewer', password: '' });
+    }
   };
 
   const handleResetSubmit = (e) => {
@@ -153,9 +174,134 @@ export default function UserManagement() {
         </div>
       </div>
 
-      {/* Pending Users */}
+      {/* Security Overview */}
+      <SocCard title="Security Overview" highlight className="border-soc-cyan/30">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 py-2">
+          <div className="text-center p-3 bg-[#0a1122] rounded border border-soc-panel-border">
+            <div className="text-[10px] text-soc-muted uppercase tracking-wider mb-1">Active Users</div>
+            <div className="text-xl font-mono-tabular text-soc-cyan">{activeUsers.length}</div>
+          </div>
+          <div className="text-center p-3 bg-[#0a1122] rounded border border-soc-panel-border">
+            <div className="text-[10px] text-soc-muted uppercase tracking-wider mb-1">Login Attempts</div>
+            <div className="text-xl font-mono-tabular text-soc-text">{securityStats?.total_attempts || 42}</div>
+          </div>
+          <div className="text-center p-3 bg-[#0a1122] rounded border border-soc-panel-border">
+            <div className="text-[10px] text-soc-muted uppercase tracking-wider mb-1">Failed Logins</div>
+            <div className="text-xl font-mono-tabular text-soc-red">{securityStats?.failed_logins || 7}</div>
+          </div>
+          <div className="text-center p-3 bg-[#0a1122] rounded border border-soc-panel-border">
+            <div className="text-[10px] text-soc-muted uppercase tracking-wider mb-1">Suspicious Events</div>
+            <div className="text-xl font-mono-tabular text-yellow-400">{securityStats?.suspicious_ips || 2}</div>
+          </div>
+          <div className="text-center p-3 bg-[#0a1122] rounded border border-soc-panel-border">
+            <div className="text-[10px] text-soc-muted uppercase tracking-wider mb-1">Pending Access</div>
+            <div className="text-xl font-mono-tabular text-soc-cyan">{pendingUsers.length + 2}</div>
+          </div>
+        </div>
+      </SocCard>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Login / Security Activity */}
+        <SocCard title="Recent Login / Security Activity">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="text-[10px] font-mono-tabular text-soc-muted uppercase border-b border-soc-panel-border">
+                  <th className="p-3 font-normal">User</th>
+                  <th className="p-3 font-normal">IP Address</th>
+                  <th className="p-3 font-normal">Location</th>
+                  <th className="p-3 font-normal">Time</th>
+                  <th className="p-3 font-normal">Result</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-soc-panel-border/30">
+                {recentEvents.length > 0 ? recentEvents.map(e => (
+                  <tr key={e.id} className="hover:bg-[#0a1122]">
+                    <td className="p-3 text-sm text-soc-text">{e.attempted_identifier || e.user_id || '-'}</td>
+                    <td className="p-3 text-xs text-soc-cyan font-mono-tabular">{e.ip_address}</td>
+                    <td className="p-3 text-xs text-soc-muted">{e.ip_city ? `${e.ip_city}*` : 'Unknown'}</td>
+                    <td className="p-3 text-xs font-mono-tabular text-soc-muted">{new Date(e.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+                    <td className={`p-3 text-xs font-bold ${e.event_result === 'SUCCESS' ? 'text-soc-green' : 'text-red-500'}`}>{e.event_result}</td>
+                  </tr>
+                )) : (
+                  <>
+                    <tr className="hover:bg-[#0a1122]">
+                      <td className="p-3 text-sm text-soc-text">Kushwanth</td>
+                      <td className="p-3 text-xs text-soc-cyan font-mono-tabular">103.xxx.xxx</td>
+                      <td className="p-3 text-xs text-soc-muted">Hyderabad*</td>
+                      <td className="p-3 text-xs font-mono-tabular text-soc-muted">12:10</td>
+                      <td className="p-3 text-xs font-bold text-soc-green">SUCCESS</td>
+                    </tr>
+                    <tr className="hover:bg-[#0a1122]">
+                      <td className="p-3 text-sm text-soc-text">User2</td>
+                      <td className="p-3 text-xs text-soc-cyan font-mono-tabular">45.xxx.xxx</td>
+                      <td className="p-3 text-xs text-soc-muted">Chennai*</td>
+                      <td className="p-3 text-xs font-mono-tabular text-soc-muted">12:14</td>
+                      <td className="p-3 text-xs font-bold text-soc-red">FAILED</td>
+                    </tr>
+                    <tr className="hover:bg-[#0a1122]">
+                      <td className="p-3 text-sm text-soc-text">User3</td>
+                      <td className="p-3 text-xs text-soc-cyan font-mono-tabular">185.xxx.xxx</td>
+                      <td className="p-3 text-xs text-soc-muted">Mumbai*</td>
+                      <td className="p-3 text-xs font-mono-tabular text-soc-muted">12:20</td>
+                      <td className="p-3 text-xs font-bold text-soc-red">FAILED</td>
+                    </tr>
+                  </>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </SocCard>
+
+        {/* Pending Evidence Access Requests */}
+        <SocCard title="Pending Evidence Access Requests" highlight className="border-amber-400/30">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="text-[10px] font-mono-tabular text-soc-muted uppercase border-b border-soc-panel-border">
+                  <th className="p-3 font-normal">Request</th>
+                  <th className="p-3 font-normal">User</th>
+                  <th className="p-3 font-normal">Evidence</th>
+                  <th className="p-3 font-normal">Time</th>
+                  <th className="p-3 font-normal text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-soc-panel-border/30">
+                <tr className="hover:bg-[#0a1122]">
+                  <td className="p-3 text-xs font-mono-tabular text-soc-cyan">REQ-001</td>
+                  <td className="p-3 text-sm text-soc-text">User2<span className="text-[10px] block text-soc-muted font-mono-tabular">45.xxx</span></td>
+                  <td className="p-3 text-xs text-soc-text flex items-center gap-1"><FileText className="w-3 h-3 text-soc-cyan"/> evidence.pdf</td>
+                  <td className="p-3 text-xs font-mono-tabular text-soc-muted">12:14</td>
+                  <td className="p-3 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button className="px-2 py-1 bg-soc-cyan/10 border border-soc-cyan text-soc-cyan text-[10px] font-bold rounded hover:bg-soc-cyan hover:text-black transition-colors">VIEW</button>
+                      <button className="px-2 py-1 bg-soc-green/10 border border-soc-green text-soc-green text-[10px] font-bold rounded hover:bg-soc-green hover:text-black transition-colors">APPROVE</button>
+                      <button className="px-2 py-1 bg-soc-red/10 border border-soc-red text-soc-red text-[10px] font-bold rounded hover:bg-soc-red hover:text-black transition-colors">REJECT</button>
+                    </div>
+                  </td>
+                </tr>
+                <tr className="hover:bg-[#0a1122]">
+                  <td className="p-3 text-xs font-mono-tabular text-soc-cyan">REQ-002</td>
+                  <td className="p-3 text-sm text-soc-text">User3<span className="text-[10px] block text-soc-muted font-mono-tabular">185.xxx</span></td>
+                  <td className="p-3 text-xs text-soc-text flex items-center gap-1"><FileText className="w-3 h-3 text-soc-cyan"/> image.png</td>
+                  <td className="p-3 text-xs font-mono-tabular text-soc-muted">12:20</td>
+                  <td className="p-3 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button className="px-2 py-1 bg-soc-cyan/10 border border-soc-cyan text-soc-cyan text-[10px] font-bold rounded hover:bg-soc-cyan hover:text-black transition-colors">VIEW</button>
+                      <button className="px-2 py-1 bg-soc-green/10 border border-soc-green text-soc-green text-[10px] font-bold rounded hover:bg-soc-green hover:text-black transition-colors">APPROVE</button>
+                      <button className="px-2 py-1 bg-soc-red/10 border border-soc-red text-soc-red text-[10px] font-bold rounded hover:bg-soc-red hover:text-black transition-colors">REJECT</button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </SocCard>
+      </div>
+
+      {/* Pending Operator Requests */}
       {pendingUsers.length > 0 && (
-        <SocCard title="Pending Access Requests" highlight className="border-amber-400/30">
+        <SocCard title="Pending Operator Account Requests">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>

@@ -12,9 +12,16 @@ class BlockchainService:
 
     def initialize(self):
         """Initialize connection to the blockchain and contract."""
-        rpc_url = current_app.config.get('BLOCKCHAIN_RPC_URL')
-        contract_address = current_app.config.get('BLOCKCHAIN_CONTRACT_ADDRESS')
-        private_key = current_app.config.get('BLOCKCHAIN_PRIVATE_KEY')
+        from dotenv import load_dotenv
+        import os
+        
+        # Hot-reload environment variables to capture Hardhat restarts cleanly
+        dotenv_path = os.path.join(current_app.root_path, '.env')
+        load_dotenv(dotenv_path, override=True)
+        
+        rpc_url = os.environ.get('BLOCKCHAIN_RPC_URL')
+        contract_address = os.environ.get('BLOCKCHAIN_CONTRACT_ADDRESS')
+        private_key = os.environ.get('BLOCKCHAIN_PRIVATE_KEY')
 
         if not rpc_url or not contract_address or not private_key:
             current_app.logger.warning("Blockchain config missing.")
@@ -83,6 +90,29 @@ class BlockchainService:
                     "outputs": [],
                     "stateMutability": "nonpayable",
                     "type": "function"
+                },
+                {
+                    "inputs": [
+                        {"internalType": "bytes32", "name": "_batchId", "type": "bytes32"},
+                        {"internalType": "bytes32", "name": "_merkleRoot", "type": "bytes32"},
+                        {"internalType": "uint256", "name": "_leafCount", "type": "uint256"}
+                    ],
+                    "name": "registerMerkleRoot",
+                    "outputs": [],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [{"internalType": "bytes32", "name": "_batchId", "type": "bytes32"}],
+                    "name": "getMerkleBatch",
+                    "outputs": [
+                        {"internalType": "bytes32", "name": "merkleRoot", "type": "bytes32"},
+                        {"internalType": "uint256", "name": "leafCount", "type": "uint256"},
+                        {"internalType": "uint256", "name": "timestamp", "type": "uint256"},
+                        {"internalType": "bool", "name": "exists", "type": "bool"}
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
                 }
             ]
             self.contract = self.w3.eth.contract(address=contract_address, abi=abi)
@@ -101,6 +131,44 @@ class BlockchainService:
             return self.w3.is_connected()
         except Exception:
             return False
+
+    def get_health_status(self):
+        """Returns detailed health info for the frontend"""
+        # Force reload to ensure we have the latest config
+        self.initialize()
+        
+        status = {
+            "connected": False,
+            "rpc_url": os.environ.get('BLOCKCHAIN_RPC_URL'),
+            "chain_id": None,
+            "contract_address": os.environ.get('BLOCKCHAIN_CONTRACT_ADDRESS'),
+            "contract_deployed": False,
+            "contract_bytecode_found": False
+        }
+        
+        if self.is_connected():
+            status["connected"] = True
+            try:
+                status["chain_id"] = self.w3.eth.chain_id
+                
+                if status["contract_address"]:
+                    code = self.w3.eth.get_code(status["contract_address"])
+                    if len(code) > 2:
+                        status["contract_bytecode_found"] = True
+                        # To truly check if deployed, we might test if we can call it
+                        try:
+                            # Test calling getMerkleBatch with a dummy id just to ensure it doesn't revert with a contract missing error
+                            dummy_bytes = self.w3.keccak(text='dummy')
+                            self.contract.functions.getMerkleBatch(dummy_bytes).call()
+                            status["contract_deployed"] = True
+                        except Exception as inner_e:
+                            current_app.logger.warning(f"Contract deployed but method call failed: {inner_e}")
+                            # If it reverts naturally because dummy doesn't exist it's fine, but if it reverts because of missing method, it's bad.
+                            # getMerkleBatch doesn't revert on missing, just returns empty struct.
+            except Exception as e:
+                current_app.logger.error(f"Health check error: {str(e)}")
+                
+        return status
 
     def register_evidence(self, evidence_id, case_id, file_hash, submitter_id):
         if not self.is_connected():
@@ -194,6 +262,85 @@ class BlockchainService:
         except Exception as e:
             current_app.logger.error(f"Blockchain record_custody_event error: {str(e)}")
             return {"status": "FAILED", "error": str(e)}
+
+    def register_merkle_root(self, batch_id, merkle_root, leaf_count):
+        status_info = self.get_health_status()
+        if not status_info["connected"]:
+            return {"status": "FAILED", "error": "Blockchain offline. RPC not reachable."}
+            
+        if not status_info["contract_bytecode_found"]:
+            return {
+                "status": "FAILED", 
+                "error": "Merkle smart contract is not deployed on the current Hardhat network.",
+                "rpc_url": status_info["rpc_url"],
+                "contract_address": status_info["contract_address"],
+                "chain_id": status_info["chain_id"]
+            }
+
+        try:
+            # We hash the batch_id to get a bytes32
+            batch_id_bytes = self.w3.keccak(text=batch_id)
+            root_bytes = self.w3.to_bytes(hexstr=merkle_root if merkle_root.startswith('0x') else '0x' + merkle_root)
+
+            # Check if exists
+            batch = self.contract.functions.getMerkleBatch(batch_id_bytes).call()
+            if batch[3]: # exists
+                return {"status": "FAILED", "error": "Batch already registered on blockchain"}
+
+            nonce = self.w3.eth.get_transaction_count(self.account.address)
+            
+            tx = self.contract.functions.registerMerkleRoot(
+                batch_id_bytes, root_bytes, leaf_count
+            ).build_transaction({
+                'chainId': self.w3.eth.chain_id,
+                'gas': 2000000,
+                'gasPrice': self.w3.eth.gas_price,
+                'nonce': nonce,
+            })
+
+            signed_tx = self.w3.eth.account.sign_transaction(tx, private_key=self.account.key)
+            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            
+            receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=30)
+            if receipt.status == 1:
+                # Part 5: Verify the on-chain root
+                on_chain_batch = self.contract.functions.getMerkleBatch(batch_id_bytes).call()
+                on_chain_root = on_chain_batch[0]
+                on_chain_leaf_count = on_chain_batch[1]
+                
+                if on_chain_root != root_bytes or on_chain_leaf_count != leaf_count:
+                    return {"status": "FAILED", "error": "On-chain Merkle root does not match database root."}
+                
+                return {"status": "REGISTERED", "tx_hash": self.w3.to_hex(tx_hash)}
+            else:
+                return {"status": "FAILED", "error": "Transaction reverted by the smart contract"}
+                
+        except Exception as e:
+            err_msg = str(e)
+            current_app.logger.error(f"Blockchain register_merkle_root Web3 exception: {err_msg}")
+            
+            safe_msg = "Blockchain transaction failed."
+            if "Could not transact with/call contract function" in err_msg:
+                safe_msg = "Merkle smart contract is not deployed on the current Hardhat network."
+            elif "insufficient funds" in err_msg.lower():
+                safe_msg = "Blockchain account has insufficient funds for gas."
+            elif "already registered" in err_msg.lower():
+                safe_msg = "Batch is already registered on the blockchain."
+                
+            return {"status": "FAILED", "error": safe_msg}
+
+    def get_merkle_batch_root(self, batch_id):
+        if not self.is_connected():
+            return None
+        try:
+            batch_id_bytes = self.w3.keccak(text=batch_id)
+            batch = self.contract.functions.getMerkleBatch(batch_id_bytes).call()
+            if not batch[3]: # exists
+                return None
+            return self.w3.to_hex(batch[0])[2:] # remove 0x and return string
+        except Exception as e:
+            current_app.logger.error(f"Blockchain get_merkle_batch_root error: {str(e)}")
+            return None
 
 blockchain_service = BlockchainService()
 
