@@ -39,7 +39,7 @@ def generate_report(case_id=None):
             db.session.commit()
             report_id_to_return = new_report.id
             log_audit('GENERATE_REPORT', f"Generated {report_type_title} for case {case_id}")
-            log_chain_of_custody("SYSTEM", case_id, "Report Generated", status="SUCCESS")
+            log_chain_of_custody(None, case_id, "Report Generated", status="SUCCESS")
         else:
             report_id_to_return = f"global_{report_filename}"
             log_audit('GENERATE_REPORT', f"Generated global {report_type_title}")

@@ -25,8 +25,23 @@ export default function UploadEvidence() {
     e.preventDefault();
     e.stopPropagation();
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setFile(e.dataTransfer.files[0]);
+      validateAndSetFile(e.dataTransfer.files[0]);
     }
+  };
+
+  const validateAndSetFile = (selectedFile) => {
+    const maxSize = 100 * 1024 * 1024; // 100MB
+    if (selectedFile.size > maxSize) {
+      alert(`The selected file exceeds the 100MB size limit. Please choose a smaller file.`);
+      return;
+    }
+    const ext = selectedFile.name.split('.').pop().toLowerCase();
+    const allowed = ['pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx', 'txt', 'csv', 'log', 'zip', 'ppt', 'pptx'];
+    if (!allowed.includes(ext)) {
+      alert(`Unsupported file extension: .${ext}`);
+      return;
+    }
+    setFile(selectedFile);
   };
 
   const handleUpload = () => {
@@ -57,8 +72,15 @@ export default function UploadEvidence() {
     formData.append('file', file);
     formData.append('case_id', caseId);
     
-    await uploadEvidence(formData);
-    navigate('/evidence');
+    const res = await uploadEvidence(formData);
+    if (res && res.success) {
+      navigate('/evidence');
+    } else {
+      alert(res?.error || 'Failed to upload evidence');
+      setIsUploading(false);
+      setProgress(0);
+      setStep(0);
+    }
   };
 
   return (
@@ -101,7 +123,8 @@ export default function UploadEvidence() {
                 type="file" 
                 className="hidden" 
                 ref={fileInputRef}
-                onChange={(e) => e.target.files && setFile(e.target.files[0])}
+                accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.txt,.csv,.log,.zip,.ppt,.pptx"
+                onChange={(e) => e.target.files && validateAndSetFile(e.target.files[0])}
               />
               <div className="w-16 h-16 rounded-full bg-soc-cyan/10 flex items-center justify-center mb-4">
                 <UploadCloud className="w-8 h-8 text-soc-cyan" />

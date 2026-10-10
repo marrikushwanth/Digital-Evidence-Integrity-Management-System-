@@ -176,7 +176,7 @@ export const AppProvider = ({ children }) => {
         uploadDate: e.uploaded_at,
         aesEncrypted: true,
         caseId: e.case_id,
-        verificationStatus: e.blockchain_status || 'Verified',
+        verificationStatus: 'UNVERIFIED',
         blockchainStatus: e.blockchain_status,
         blockchainTxHash: e.blockchain_tx_hash
       }));
@@ -350,13 +350,22 @@ export const AppProvider = ({ children }) => {
   };
 
   const uploadEvidence = async (formData) => {
-    await apiFetch('/evidence/', { method: 'POST', body: formData });
-    fetchData();
+    const res = await apiFetch('/evidence/', { method: 'POST', body: formData });
+    if (res.data && res.data.success) {
+      fetchData();
+      return { success: true, data: res.data };
+    }
+    return { success: false, error: res.data?.message || 'Failed to upload evidence' };
   };
 
   const deleteEvidence = async (id) => {
-    await apiFetch(`/evidence/${id}`, { method: 'DELETE' });
-    fetchData();
+    const res = await apiFetch(`/evidence/${id}`, { method: 'DELETE' });
+    if (res.data && res.data.success) {
+        fetchData();
+        return { success: true };
+    } else {
+        return { success: false, error: res.data?.message || 'Failed to delete evidence' };
+    }
   };
   
   const verifyEvidence = async (formData) => {

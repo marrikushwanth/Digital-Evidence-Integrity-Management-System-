@@ -75,7 +75,7 @@ def create_merkle_batch():
     }, status_code=201)
 
 def get_all_batches():
-    batches = MerkleBatch.query.order_by(MerkleBatch.created_at.desc()).all()
+    batches = MerkleBatch.query.filter(~MerkleBatch.status.in_(['ARCHIVED', 'DELETED'])).order_by(MerkleBatch.created_at.desc()).all()
     result = []
     for b in batches:
         result.append({
@@ -293,38 +293,26 @@ def verify_uploaded_batch_files(batch_identifier):
     leaves_hashes = [l.leaf_hash for l in leaves]
     original_tree = MerkleTree(leaves_hashes)
     
-    # Map leaves by original_name to match uploaded files safely
-    leaf_map = {}
+    # Store all expected leaves as a list to allow duplicate filenames and proper matching
+    expected_items = []
     for leaf in leaves:
         evidence = Evidence.query.get(leaf.evidence_id)
-        if evidence:
-            leaf_map[evidence.original_name] = {
-                'leaf': leaf,
-                'evidence': evidence,
-                'matched': False
-            }
+        expected_items.append({
+            'leaf': leaf,
+            'evidence': evidence,
+            'original_name': evidence.original_name if evidence else 'Unknown',
+            'matched': False
+        })
             
     files_result = []
     verified_count = 0
     failed_count = 0
-    extra_files = []
+    missing_count = 0
+    extra_count = 0
     
+    # Pre-hash all uploaded files
+    uploaded_files_data = []
     for uploaded_file in uploaded_files:
-        filename = uploaded_file.filename
-        
-        # Check if this file belongs to the batch
-        if filename not in leaf_map:
-            extra_files.append({
-                "filename": filename,
-                "status": "FILE NOT IN SELECTED MERKLE BATCH"
-            })
-            continue
-            
-        leaf_data = leaf_map[filename]
-        leaf = leaf_data['leaf']
-        leaf_data['matched'] = True
-        
-        # Calculate new hash from uploaded file stream
         sha256_hash = hashlib.sha256()
         while True:
             chunk = uploaded_file.read(4096)
@@ -332,42 +320,77 @@ def verify_uploaded_batch_files(batch_identifier):
                 break
             sha256_hash.update(chunk)
         new_hash = sha256_hash.hexdigest()
-        
-        # Reset stream position if needed by other components, though not strictly required here
         uploaded_file.seek(0)
-        
-        status = "INTEGRITY FAILURE"
-        if new_hash == leaf.leaf_hash:
-            # Hash matches, now verify proof
-            proof = original_tree.get_proof(leaf.leaf_index)
-            is_valid = verify_merkle_proof(new_hash, proof, reference_root)
-            if is_valid:
-                status = "VERIFIED"
-                
-        if status == "VERIFIED":
-            verified_count += 1
-        else:
-            failed_count += 1
-            
-        files_result.append({
-            "evidence_id": leaf.evidence_id,
-            "filename": filename,
-            "status": status
+        uploaded_files_data.append({
+            'filename': uploaded_file.filename,
+            'hash': new_hash,
+            'matched': False
         })
+
+    # Pass 1: Exact Hash Match
+    for up_file in uploaded_files_data:
+        for item in expected_items:
+            if not item['matched'] and item['leaf'].leaf_hash == up_file['hash']:
+                # Perfect match! Verify proof
+                proof = original_tree.get_proof(item['leaf'].leaf_index)
+                is_valid = verify_merkle_proof(up_file['hash'], proof, reference_root)
+                
+                status = "VERIFIED" if is_valid else "INTEGRITY FAILURE"
+                if status == "VERIFIED":
+                    verified_count += 1
+                else:
+                    failed_count += 1
+                    
+                files_result.append({
+                    "evidence_id": item['leaf'].evidence_id,
+                    "filename": up_file['filename'],
+                    "status": status
+                })
+                item['matched'] = True
+                up_file['matched'] = True
+                break
+
+    # Pass 2: Filename Match for Integrity Failures
+    for up_file in uploaded_files_data:
+        if up_file['matched']:
+            continue
         
-    # Check for missing files
-    missing_count = 0
-    for original_name, leaf_data in leaf_map.items():
-        if not leaf_data['matched']:
+        # Look for unmatched expected item with same filename
+        matched_item = None
+        for item in expected_items:
+            if not item['matched'] and item['original_name'] == up_file['filename']:
+                matched_item = item
+                break
+                
+        if matched_item:
+            # We found a filename match but hashes differed -> Integrity Failure
+            failed_count += 1
+            files_result.append({
+                "evidence_id": matched_item['leaf'].evidence_id,
+                "filename": up_file['filename'],
+                "status": "INTEGRITY FAILURE"
+            })
+            matched_item['matched'] = True
+            up_file['matched'] = True
+        else:
+            # Extra file not in batch
+            extra_count += 1
+            files_result.append({
+                "evidence_id": None,
+                "filename": up_file['filename'],
+                "status": "FILE NOT IN SELECTED MERKLE BATCH"
+            })
+            up_file['matched'] = True
+
+    # Pass 3: Missing files
+    for item in expected_items:
+        if not item['matched']:
             missing_count += 1
             files_result.append({
-                "evidence_id": leaf_data['leaf'].evidence_id,
-                "filename": original_name,
+                "evidence_id": item['leaf'].evidence_id,
+                "filename": item['original_name'],
                 "status": "NOT PROVIDED"
             })
-            
-    # Include extra files in the result list for UI feedback
-    files_result.extend(extra_files)
     
     overall_status = "FULLY VERIFIED"
     if failed_count > 0:
@@ -378,11 +401,12 @@ def verify_uploaded_batch_files(batch_identifier):
     return success_response('Batch uploaded files verification complete', {
         "batch_id": batch.batch_id,
         "batch_name": batch.batch_name or 'Unnamed Batch',
-        "expected_files": len(leaves),
-        "uploaded_files": len(uploaded_files),
+        "expected_files": len(expected_items),
+        "uploaded_files": len(uploaded_files_data),
         "verified_files": verified_count,
         "not_provided": missing_count,
         "failed_files": failed_count,
+        "extra_count": extra_count,
         "blockchain_verified": blockchain_verified,
         "overall_status": overall_status,
         "files": files_result
@@ -526,3 +550,24 @@ def clone_merkle_batch(batch_identifier):
         'leaf_count': new_batch.leaf_count,
         'status': new_batch.status
     }, status_code=201)
+
+def delete_merkle_batch(batch_identifier):
+    batch = MerkleBatch.query.filter_by(batch_id=batch_identifier).first()
+    if not batch:
+        return error_response('Batch not found', 404)
+        
+    if batch.status == 'FINALIZED' or batch.blockchain_status == 'REGISTERED':
+        # Safely archive if already registered on blockchain
+        batch.status = 'ARCHIVED'
+        db.session.commit()
+        from utils.logger import log_audit
+        log_audit('MERKLE_BATCH_ARCHIVED', f"Archived finalized Merkle batch {batch_identifier}")
+        return success_response('Batch archived successfully')
+    else:
+        # Physical delete for pending batches (leaves cascade)
+        db.session.delete(batch)
+        db.session.commit()
+        from utils.logger import log_audit
+        log_audit('MERKLE_BATCH_DELETED', f"Deleted pending Merkle batch {batch_identifier}")
+        return success_response('Batch deleted successfully')
+

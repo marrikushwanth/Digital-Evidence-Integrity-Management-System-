@@ -48,10 +48,15 @@ export default function EvidenceList() {
     downloadEvidence(ev.id, ev.fileName);
   };
 
-  const handleDelete = (ev) => {
+  const handleDelete = async (ev) => {
     if (window.confirm(`Are you sure you want to permanently delete artifact ${ev.id}? This action will be permanently logged.`)) {
-      deleteEvidence(ev.id);
-      setIsDetailsOpen(false);
+      const res = await deleteEvidence(ev.id);
+      if (res && res.success) {
+          alert('Evidence deleted successfully.');
+          setIsDetailsOpen(false);
+      } else {
+          alert(res?.error || 'Failed to delete evidence.');
+      }
     }
   };
 

@@ -5,13 +5,14 @@ import EditBatchModal from '../components/ui/EditBatchModal';
 import { useApp } from '../context/AppContext';
 
 export default function MerkleBatches() {
-  const { apiFetch } = useApp();
+  const { apiFetch, hasRole } = useApp();
   const [batches, setBatches] = useState([]);
   const [evidences, setEvidences] = useState([]);
   const [selectedEvidences, setSelectedEvidences] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [batchName, setBatchName] = useState('');
+  const [deletingBatch, setDeletingBatch] = useState(null);
   
   const [cases, setCases] = useState([]);
   
@@ -144,6 +145,26 @@ export default function MerkleBatches() {
       }
     } catch (err) {
       alert(err.message || 'Failed to clone batch');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmDeleteBatch = async () => {
+    if (!deletingBatch) return;
+    setLoading(true);
+    setError('');
+    try {
+      const res = await apiFetch(`/merkle/batches/${deletingBatch.id}`, { method: 'DELETE' });
+      if (res.data && res.data.success) {
+        alert(res.data.message || 'Batch successfully removed');
+        setDeletingBatch(null);
+        fetchBatches();
+      } else {
+        setError(res.data?.message || 'Error deleting batch');
+      }
+    } catch (err) {
+      setError(err.message || 'Network error while deleting batch');
     } finally {
       setLoading(false);
     }
@@ -686,6 +707,15 @@ export default function MerkleBatches() {
                           >
                             Finalize on Chain
                           </button>
+                          {hasRole(['Super Admin', 'Admin']) && (
+                            <button
+                              onClick={() => setDeletingBatch(batch)}
+                              disabled={loading}
+                              className="text-xs px-3 py-1 bg-red-600/80 hover:bg-red-500 text-white rounded transition-colors disabled:opacity-50"
+                            >
+                              Delete
+                            </button>
+                          )}
                         </>
                       ) : (
                         <>
@@ -710,6 +740,15 @@ export default function MerkleBatches() {
                           >
                             Tx: {batch.blockchain_tx_hash?.substring(0,6)}...
                           </a>
+                          {hasRole(['Super Admin', 'Admin']) && (
+                            <button
+                              onClick={() => setDeletingBatch(batch)}
+                              disabled={loading}
+                              className="text-xs px-3 py-1 bg-red-600/80 hover:bg-red-500 text-white rounded transition-colors disabled:opacity-50"
+                            >
+                              Delete
+                            </button>
+                          )}
                         </>
                       )}
                     </div>
@@ -735,6 +774,41 @@ export default function MerkleBatches() {
           onClose={() => setEditingBatch(null)}
           onRefresh={fetchBatches}
         />
+      )}
+
+      {deletingBatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-[#0f172a] border border-slate-700 rounded-lg max-w-md w-full p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-white mb-4">Delete this Merkle batch?</h3>
+            <div className="space-y-2 text-sm text-gray-300 mb-6">
+              <p><strong>Batch Name:</strong> {deletingBatch.batch_name || 'Unnamed'}</p>
+              <p><strong>Batch ID:</strong> {deletingBatch.id}</p>
+              <p><strong>Files:</strong> {deletingBatch.leaf_count}</p>
+              <p><strong>Status:</strong> {deletingBatch.status}</p>
+              <p><strong>Blockchain:</strong> {deletingBatch.blockchain_status || 'PENDING'}</p>
+              <p className="mt-4 text-xs text-amber-400 p-2 bg-amber-500/10 border border-amber-500/20 rounded">
+                Deleting the batch from DEIMS will not erase transactions already recorded on the blockchain.
+              </p>
+            </div>
+            {error && <p className="text-red-400 text-xs mb-4">{error}</p>}
+            <div className="flex gap-3 justify-end">
+              <button 
+                onClick={() => setDeletingBatch(null)}
+                disabled={loading}
+                className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmDeleteBatch}
+                disabled={loading}
+                className="px-4 py-2 text-sm bg-red-600 hover:bg-red-500 text-white rounded transition-colors disabled:opacity-50"
+              >
+                {loading ? 'Deleting...' : 'Confirm Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

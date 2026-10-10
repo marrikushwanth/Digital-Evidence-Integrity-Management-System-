@@ -12,7 +12,8 @@ from controllers.merkle_controller import (
     add_evidence_to_batch,
     remove_evidence_from_batch,
     clone_merkle_batch,
-    get_blockchain_status
+    get_blockchain_status,
+    delete_merkle_batch
 )
 from utils.auth_utils import jwt_required, role_required
 
@@ -84,3 +85,9 @@ def api_remove_evidence_from_batch(batch_id, evidence_id):
 @jwt_required
 def api_clone_merkle_batch(batch_id):
     return clone_merkle_batch(batch_id)
+
+@merkle_bp.route('/batches/<batch_id>', methods=['DELETE'])
+@jwt_required
+@role_required(['Super Admin', 'Admin'])
+def api_delete_batch(batch_id):
+    return delete_merkle_batch(batch_id)

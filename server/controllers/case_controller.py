@@ -90,7 +90,7 @@ def create_case(request):
     db.session.commit()
     
     log_audit('CREATE_CASE', f"Created case {new_case.id} - {new_case.title}")
-    log_chain_of_custody("SYSTEM", new_case.id, "Case Created", status="SUCCESS")
+    log_chain_of_custody(None, new_case.id, "Case Created", status="SUCCESS")
     
     return success_response('Case created', {
         'id': new_case.id,
@@ -130,7 +130,7 @@ def update_case(case_id, request):
     
     db.session.commit()
     log_audit('UPDATE_CASE', f"Updated case {case.id}")
-    log_chain_of_custody("SYSTEM", case.id, "Case Updated", status="SUCCESS")
+    log_chain_of_custody(None, case.id, "Case Updated", status="SUCCESS")
     return success_response('Case updated')
 
 def change_case_status(case_id, request):
@@ -150,9 +150,9 @@ def change_case_status(case_id, request):
     log_audit('UPDATE_CASE_STATUS', f"Changed status of case {case.id} to {case.status}")
     
     if case.status == 'Closed':
-        log_chain_of_custody("SYSTEM", case.id, "Case Closed", status="SUCCESS")
+        log_chain_of_custody(None, case.id, "Case Closed", status="SUCCESS")
     else:
-        log_chain_of_custody("SYSTEM", case.id, "Case Reopened", status="SUCCESS")
+        log_chain_of_custody(None, case.id, "Case Reopened", status="SUCCESS")
         
     return success_response('Case status updated')
 

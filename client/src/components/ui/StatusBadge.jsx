@@ -13,6 +13,7 @@ export default function StatusBadge({ status, type = 'status' }) {
   if (type === 'status') {
     switch (status?.toUpperCase()) {
       case 'VERIFIED':
+      case 'FULLY VERIFIED':
       case 'ACTIVE':
       case 'SUCCESS':
         config = {
@@ -26,6 +27,8 @@ export default function StatusBadge({ status, type = 'status' }) {
       case 'TAMPERED':
       case 'CRITICAL':
       case 'DANGER':
+      case 'INTEGRITY FAILURE':
+      case 'VERIFICATION ERROR':
         config = {
           color: 'text-soc-red',
           bg: 'bg-rose-950/40',
@@ -37,6 +40,8 @@ export default function StatusBadge({ status, type = 'status' }) {
       case 'WARNING':
       case 'UNDER REVIEW':
       case 'PENDING APPROVAL':
+      case 'DATABASE VERIFIED ONLY':
+      case 'BLOCKCHAIN VERIFIED ONLY':
         config = {
           color: 'text-amber-400',
           bg: 'bg-amber-950/40',
@@ -54,6 +59,8 @@ export default function StatusBadge({ status, type = 'status' }) {
           glow: 'shadow-[0_0_10px_rgba(0,240,255,0.2)]'
         };
         break;
+      case 'UNVERIFIED':
+      case 'BLOCKCHAIN UNAVAILABLE':
       default:
         config = {
           color: 'text-slate-400',

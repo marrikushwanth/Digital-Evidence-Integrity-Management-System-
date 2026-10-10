@@ -11,7 +11,7 @@ from services.hash_service import HashService
 from utils.response import success_response, error_response
 from utils.logger import log_audit, log_chain_of_custody
 
-ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx', 'txt', 'csv', 'log', 'zip'}
+ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx', 'txt', 'csv', 'log', 'zip', 'ppt', 'pptx'}
 REJECTED_EXTENSIONS = {'exe', 'dll', 'bat', 'cmd', 'msi', 'js', 'ps1', 'php', 'sh'}
 
 def allowed_file(filename):
@@ -62,18 +62,22 @@ def upload_evidence(request):
         file.save(temp_path)
         file_hash = HashService.generate_sha256(temp_path)
         
-        # Check for duplicates across the entire system
-        existing_evidence = Evidence.query.filter_by(file_hash=file_hash).first()
+        # Check for duplicates across ACTIVE system records
+        existing_evidence = Evidence.query.filter_by(file_hash=file_hash, status='ACTIVE').first()
         if existing_evidence:
             return error_response('Duplicate evidence. This exact file already exists in the system.', status_code=409)
             
-        encrypted_filename = f"{file_hash}.enc"
+        from models.user import generate_uuid
+        new_evidence_id = generate_uuid()
+            
+        encrypted_filename = f"{new_evidence_id}.enc"
         encrypted_path = os.path.join(current_app.config['ENCRYPTED_FOLDER'], encrypted_filename)
         
         CryptoService.encrypt_file(temp_path, encrypted_path)
         file_size = os.path.getsize(temp_path)
         
         new_evidence = Evidence(
+            id=new_evidence_id,
             file_name=encrypted_filename,
             original_name=original_filename,
             file_size=file_size,
@@ -128,7 +132,7 @@ def get_all_evidence(request):
     per_page = request.args.get('limit', 50, type=int)
     per_page = min(max(1, per_page), 100)
     
-    pagination = Evidence.query.order_by(Evidence.uploaded_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    pagination = Evidence.query.filter(Evidence.status != 'DELETED').order_by(Evidence.uploaded_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
     
     data = []
     for ev in pagination.items:
@@ -290,11 +294,9 @@ def delete_evidence(evidence_id):
     encrypted_path = os.path.join(current_app.config['ENCRYPTED_FOLDER'], evidence.file_name)
     
     try:
-        if os.path.exists(encrypted_path):
-            os.remove(encrypted_path)
-            
         case_id = evidence.case_id
-        db.session.delete(evidence)
+        
+        evidence.status = 'DELETED'
         db.session.commit()
         
         log_audit('DELETE_EVIDENCE', f"Deleted evidence {evidence_id}")

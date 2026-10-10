@@ -11,6 +11,7 @@ class Evidence(db.Model):
     mime_type = db.Column(db.String(100))
     file_hash = db.Column(db.String(64), nullable=False) # SHA-256
     description = db.Column(db.Text)
+    status = db.Column(db.String(20), default='ACTIVE')
     
     # Blockchain Fields
     blockchain_tx_hash = db.Column(db.String(66), nullable=True) # 0x + 64 hex chars

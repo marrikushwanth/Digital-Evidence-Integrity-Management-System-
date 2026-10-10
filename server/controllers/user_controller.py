@@ -179,7 +179,7 @@ def approve_user(user_id):
     user.status = 'Active'
     db.session.commit()
     log_audit('APPROVE_USER', f"Approved registration for {user.username}")
-    log_chain_of_custody("SYSTEM", "SYSTEM", "User Approved", status="SUCCESS")
+    log_chain_of_custody(None, None, "User Approved", status="SUCCESS")
     return success_response('User approved')
 
 def reject_user(user_id):
@@ -235,9 +235,9 @@ def change_status(user_id, request):
     log_audit('UPDATE_USER_STATUS', f"Changed status of {user.username} to {user.status}")
     
     if user.status == 'Suspended':
-        log_chain_of_custody("SYSTEM", "SYSTEM", "User Suspended", status="SUCCESS")
+        log_chain_of_custody(None, None, "User Suspended", status="SUCCESS")
     elif user.status == 'Active':
-        log_chain_of_custody("SYSTEM", "SYSTEM", "User Activated", status="SUCCESS")
+        log_chain_of_custody(None, None, "User Activated", status="SUCCESS")
         
     return success_response('User status updated')
 
